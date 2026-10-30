@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#c20000" />
+  <meta name="description" content="Sigue en directo el recorrido de la Cabalgata de Reyes de Rivas Vaciamadrid." />
+  <title>Cabalgata de Reyes · Rivas Vaciamadrid</title>
+  <link rel="icon" href="assets/cabalgata-icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;650;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    var dojoConfig = { async: true };
+  </script>
+  <script src="js/config.js"></script>
+  <script src="js/geometry.js"></script>
+  <script src="https://js.arcgis.com/4.31/"></script>
+  <script src="js/app.js"></script>
+</head>
+<body>
+  <div id="viewDiv" role="application" aria-label="Mapa del recorrido de la cabalgata"></div>
+
+  <header class="top-bar">
+    <div class="brand-chip">
+      <span
+        id="brandIcon"
+        class="brand-icon"
+        role="img"
+        aria-label="Los Tres Reyes Magos en la carroza lanzando caramelos"
+      ></span>
+      <div>
+        <h1>Cabalgata de Reyes</h1>
+        <p>Rivas Vaciamadrid · seguimiento en directo</p>
+      </div>
+    </div>
+    <div class="status-row">
+      <div id="statusChip" class="status-chip" data-state="pending">Cargando…</div>
+    </div>
+  </header>
+
+  <aside class="bottom-panel" aria-live="polite">
+    <div class="info-chip street">
+      <span class="label">Ahora está en</span>
+      <span id="streetValue" class="value">Localizando…</span>
+    </div>
+    <div id="etaChip" class="info-chip eta is-hidden">
+      <span class="label">Tu tiempo de llegada</span>
+      <span id="etaValue" class="value">Activa tu ubicación</span>
+    </div>
+    <div class="actions">
+      <button id="btnLocate" class="btn-primary" type="button">Activar mi ubicación</button>
+      <button id="btnFollow" class="btn-secondary is-active" type="button" aria-pressed="true">Seguir</button>
+    </div>
+  </aside>
+</body>
+</html>

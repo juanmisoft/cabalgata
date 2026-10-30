@@ -1,0 +1,263 @@
+:root {
+  --brand: #c20000;
+  --brand-dark: #8a0000;
+  --ink: #1a1a1a;
+  --muted: #5c5c5c;
+  --panel: rgba(255, 252, 248, 0.94);
+  --panel-border: rgba(26, 26, 26, 0.08);
+  --ok: #1f7a4d;
+  --warn: #9a6b00;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  --radius: 14px;
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "Source Sans 3", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: #0f1418;
+}
+
+#viewDiv {
+  position: absolute;
+  inset: 0;
+}
+
+.top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 0;
+  pointer-events: none;
+}
+
+.brand-chip,
+.status-chip,
+.info-chip {
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+}
+
+.brand-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 10px;
+  width: fit-content;
+  max-width: min(420px, 100%);
+}
+
+.brand-icon {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  display: block;
+  background: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+.brand-icon svg {
+  width: 56px;
+  height: 56px;
+  display: block;
+  overflow: visible;
+}
+
+.cabecera-marker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 80px;
+  margin: -68px 0 0 -40px;
+  pointer-events: none;
+  z-index: 40;
+  will-change: left, top;
+  background: transparent;
+}
+
+.cabecera-marker-inner {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  transform-origin: 50% 85%;
+  animation: cabecera-bob 1.8s ease-in-out infinite;
+}
+
+.cabecera-marker svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  background: transparent;
+}
+
+.cabecera-marker.is-hidden {
+  display: none;
+}
+
+@keyframes cabecera-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.brand-chip h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--brand);
+  line-height: 1.15;
+}
+
+.brand-chip p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-chip {
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.status-chip[data-state="pending"] {
+  color: var(--warn);
+}
+
+.status-chip[data-state="live"] {
+  color: var(--ok);
+}
+
+.status-chip[data-state="ended"],
+.status-chip[data-state="offline"] {
+  color: var(--muted);
+}
+
+.bottom-panel {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-chip {
+  padding: 12px 14px;
+}
+
+.info-chip .label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.info-chip .value {
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.info-chip.eta .value {
+  color: var(--brand-dark);
+}
+
+.info-chip.eta.is-hidden {
+  display: none;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 16px;
+  font: inherit;
+  font-weight: 650;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+  flex: 1;
+}
+
+.btn-primary:active {
+  background: var(--brand-dark);
+}
+
+.btn-secondary {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--panel-border);
+}
+
+.btn-secondary.is-active {
+  outline: 2px solid var(--brand);
+}
+
+.esri-ui-top-left,
+.esri-ui-top-right {
+  margin-top: 96px;
+}
+
+.esri-view .esri-view-surface:focus::after {
+  outline: none;
+}
+
+@media (min-width: 768px) {
+  .top-bar,
+  .bottom-panel {
+    max-width: 420px;
+  }
+
+  .bottom-panel {
+    left: 16px;
+    right: auto;
+    width: 400px;
+  }
+}

@@ -1,0 +1,12 @@
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.env
+.env.*
+*.tmp
+_stitch_test.py
