@@ -2,6 +2,11 @@
 
 Aplicación web pública (ArcGIS Maps SDK for JavaScript) para seguir el recorrido en directo, ver la calle actual de la cabecera y estimar el tiempo de llegada a la posición del ciudadano.
 
+## Visor en vivo
+
+**[Abrir el visor](https://juanmisoft.github.io/cabalgata/)** ← esta es la app (mapa).  
+La página de GitHub (`github.com/...`) solo muestra este README; no es el visor.
+
 ## Abrir en local
 
 Sirve la carpeta `viewer/` con cualquier servidor estático (IIS, nginx, o):
