@@ -9,7 +9,7 @@
   --warn: #9a6b00;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   --radius: 14px;
-  --font-display: "Fraunces", "Georgia", serif;
+  --font-display: "Cinzel Decorative", "Georgia", serif;
   --font-body: "Source Sans 3", "Segoe UI", sans-serif;
 }
 
@@ -36,11 +36,14 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 10;
+  width: 100%;
+  max-width: none;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 12px 0;
+  padding: 0;
+  padding-top: env(safe-area-inset-top, 0);
   pointer-events: none;
 }
 
@@ -55,29 +58,77 @@ body {
 }
 
 .brand-chip {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) auto minmax(72px, 1fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 12px 12px;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  background: rgba(255, 252, 248, 0.97);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+
+.brand-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px 10px 10px;
-  width: fit-content;
-  max-width: min(420px, 100%);
+  gap: 8px;
+  justify-self: start;
+  min-width: 0;
+}
+
+.ayto-logo {
+  flex: 0 0 auto;
+  height: 58px;
+  width: auto;
+  max-width: 32vw;
+  object-fit: contain;
+  display: block;
 }
 
 .brand-icon {
   flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
+  width: 58px;
+  height: 58px;
+  min-width: 58px;
   display: block;
   background: transparent;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
 }
 
 .brand-icon svg {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   display: block;
   overflow: visible;
+}
+
+.brand-text {
+  grid-column: 2;
+  justify-self: center;
+  text-align: center;
+  min-width: 0;
+  max-width: min(70vw, 520px);
+  padding: 0 4px;
+}
+
+.header-status {
+  grid-column: 3;
+  justify-self: end;
+  align-self: center;
+  max-width: 100%;
+  padding: 7px 10px;
+  font-size: clamp(0.68rem, 2.6vw, 0.8rem);
+  text-align: center;
+  line-height: 1.2;
+  border-radius: 999px;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.85);
 }
 
 .cabecera-marker {
@@ -88,7 +139,8 @@ body {
   height: 80px;
   margin: -68px 0 0 -40px;
   pointer-events: none;
-  z-index: 40;
+  /* Por debajo de paneles de texto (z-index 30) y por encima del mapa */
+  z-index: 5;
   will-change: left, top;
   background: transparent;
 }
@@ -127,23 +179,29 @@ body {
 .brand-chip h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: clamp(1.15rem, 4.8vw, 1.85rem);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
   color: var(--brand);
-  line-height: 1.15;
+  line-height: 1.1;
+  text-wrap: balance;
 }
 
 .brand-chip p {
-  margin: 0;
-  font-size: 0.85rem;
+  margin: 0.2rem 0 0;
+  font-family: var(--font-body);
+  font-size: clamp(0.72rem, 2.6vw, 0.92rem);
+  font-weight: 600;
   color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
 }
 
 .status-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 0 12px;
 }
 
 .status-chip {
@@ -160,9 +218,38 @@ body {
   color: var(--ok);
 }
 
-.status-chip[data-state="ended"],
+.status-chip[data-state="ended"] {
+  color: var(--ok);
+}
+
 .status-chip[data-state="offline"] {
   color: var(--muted);
+}
+
+.viewers-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.viewers-chip.is-hidden {
+  display: none;
+}
+
+.viewers-chip .viewers-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.viewers-chip .viewers-count {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
 }
 
 .bottom-panel {
@@ -170,7 +257,7 @@ body {
   left: 12px;
   right: 12px;
   bottom: 16px;
-  z-index: 10;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -242,7 +329,7 @@ body {
 
 .esri-ui-top-left,
 .esri-ui-top-right {
-  margin-top: 96px;
+  margin-top: 132px;
 }
 
 .esri-view .esri-view-surface:focus::after {
@@ -250,12 +337,35 @@ body {
 }
 
 @media (min-width: 768px) {
-  .top-bar,
-  .bottom-panel {
-    max-width: 420px;
+  .ayto-logo {
+    height: 68px;
+    max-width: 220px;
+  }
+
+  .brand-icon,
+  .brand-icon svg {
+    width: 68px;
+    height: 68px;
+    min-width: 68px;
+  }
+
+  .brand-chip {
+    padding: 12px 20px;
+    gap: 12px;
+  }
+
+  .brand-chip h1 {
+    font-size: 1.85rem;
+  }
+
+  .header-status {
+    max-width: none;
+    padding: 8px 14px;
+    font-size: 0.82rem;
   }
 
   .bottom-panel {
+    max-width: 420px;
     left: 16px;
     right: auto;
     width: 400px;

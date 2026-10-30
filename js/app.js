@@ -206,37 +206,37 @@ require([
     markersLayer.removeAll();
     if (!state.routeCoords.length) return;
 
-    // Marcadores en los extremos reales del recorrido unido
     const startCoord = state.routeCoords[0];
     const finishCoord = state.routeCoords[state.routeCoords.length - 1];
 
-    addLandmark(
+    addLandmarkIcon(
       startCoord,
       CFG.landmarks.start.name,
       CFG.landmarks.start.detail,
-      [31, 140, 90, 255]
+      new URL("assets/inicio-icon.svg", window.location.href).href
     );
-    addLandmark(
+    addLandmarkIcon(
       finishCoord,
       CFG.landmarks.finish.name,
       CFG.landmarks.finish.detail,
-      [40, 40, 40, 255]
+      new URL("assets/meta-icon.svg", window.location.href).href
     );
   }
 
-  function addLandmark(coord, title, detail, color) {
+  function addLandmarkIcon(coord, title, detail, iconHref) {
+    const point = new Point({
+      longitude: coord[0],
+      latitude: coord[1]
+    });
     markersLayer.add(
       new Graphic({
-        geometry: new Point({
-          longitude: coord[0],
-          latitude: coord[1]
-        }),
+        geometry: point,
         symbol: {
-          type: "simple-marker",
-          style: "circle",
-          color,
-          size: 11,
-          outline: { color: [255, 255, 255, 1], width: 2 }
+          type: "picture-marker",
+          url: iconHref + "?v=5",
+          width: "48px",
+          height: "60px",
+          yoffset: 24
         },
         attributes: { title, detail },
         popupTemplate: {
@@ -245,21 +245,18 @@ require([
         }
       })
     );
-
+    // Etiqueta siempre visible (por si el SVG no pinta en el mapa)
     markersLayer.add(
       new Graphic({
-        geometry: new Point({
-          longitude: coord[0],
-          latitude: coord[1]
-        }),
+        geometry: point,
         symbol: {
           type: "text",
-          color: "#1a1a1a",
+          color: title === "Meta" ? "#c20000" : "#1f7a4d",
           haloColor: "#fffaf5",
-          haloSize: 1.5,
+          haloSize: 2,
           text: title,
-          font: { size: 11, weight: "bold", family: "sans-serif" },
-          yoffset: 14
+          font: { size: 12, weight: "bold", family: "sans-serif" },
+          yoffset: 42
         }
       })
     );
@@ -293,9 +290,9 @@ require([
 
     const ageMin = (Date.now() - cab.fecha) / 60000;
     const liveLimit = CFG.timing.liveWindowMinutes;
-    const pendingLimit = liveLimit * 3;
+    const pendingLimit = Math.max(liveLimit * 3, 6);
 
-    // GPS histórico: icono en Inicio (esperando salida), no en la meta
+    // Sin captura reciente (p. ej. QuickCapture cerrado hace rato)
     if (ageMin > pendingLimit) {
       state.cabecera = null;
       state.cabeceraAlong = null;
@@ -314,25 +311,42 @@ require([
     );
     state.cabeceraAlong = projected.distanceAlong;
 
-    drawRouteSplit(state.cabeceraAlong);
-    await drawCabecera(cab.point);
-    await updateStreet(cab.point);
-
+    // Meta = último vértice de la ruta (no al entrar en Fundición)
+    const finishCoord = state.routeCoords[state.routeCoords.length - 1];
+    const alongLeft = state.routeLength - state.cabeceraAlong;
     const nearEnd =
       state.routeLength > 0 &&
-      state.routeLength - state.cabeceraAlong < 40;
+      alongLeft < CFG.timing.finishThresholdMeters;
 
+    let followPoint = cab.point;
     if (nearEnd && ageMin <= liveLimit) {
+      const finishPoint = new Point({
+        longitude: finishCoord[0],
+        latitude: finishCoord[1]
+      });
+      state.cabecera = finishPoint;
+      state.cabeceraAlong = state.routeLength;
+      drawRouteSplit(state.routeLength);
+      await drawCabecera(finishPoint);
       setStatus("ended", "Ha finalizado");
-    } else if (ageMin <= liveLimit) {
-      setStatus("live", "En curso");
+      els.street.textContent = "Meta · " + CFG.landmarks.finish.detail;
+      followPoint = finishPoint;
     } else {
-      setStatus("offline", "Señal antigua");
+      drawRouteSplit(state.cabeceraAlong);
+      await drawCabecera(cab.point);
+      await updateStreet(cab.point);
+
+      if (ageMin <= liveLimit) {
+        setStatus("live", "En curso");
+      } else {
+        // QuickCapture cerrado / GPS parado: ya no “En curso”
+        setStatus("offline", "Captura detenida");
+      }
     }
 
     if (state.followCabecera) {
       const scale = Math.min(view.scale || 6000, 6000);
-      view.goTo({ center: cab.point, scale }).catch(() => {});
+      view.goTo({ center: followPoint, scale }).catch(() => {});
     }
 
     updateEta();
@@ -574,24 +588,26 @@ require([
     }
     els.etaChip.classList.remove("is-hidden");
 
+    const userProj = state.routeCoords.length
+      ? Geo.projectOnRoute(
+          [state.userPoint.longitude, state.userPoint.latitude],
+          state.routeCoords
+        )
+      : null;
+    const onRoute =
+      !!userProj && userProj.distanceToRoute <= CFG.timing.routeSnapMeters;
+    drawUser(state.userPoint, onRoute);
+
     if (!state.cabecera || state.cabeceraAlong == null || !state.routeCoords.length) {
       els.etaValue.textContent = "Esperando posición de la cabalgata…";
       return;
     }
 
-    const userProj = Geo.projectOnRoute(
-      [state.userPoint.longitude, state.userPoint.latitude],
-      state.routeCoords
-    );
-
-    if (userProj.distanceToRoute > CFG.timing.routeSnapMeters) {
+    if (!onRoute) {
       els.etaValue.textContent =
         "Acércate al recorrido para calcular la llegada";
-      drawUser(state.userPoint, false);
       return;
     }
-
-    drawUser(state.userPoint, true);
 
     const remaining = Geo.distanceBetweenAlong(
       state.cabeceraAlong,
@@ -646,6 +662,10 @@ require([
       navigator.geolocation.clearWatch(state.locateWatchId);
       state.locateWatchId = null;
       state.userPoint = null;
+      if (state.userGraphic) {
+        liveLayer.remove(state.userGraphic);
+        state.userGraphic = null;
+      }
       els.btnLocate.textContent = "Activar mi ubicación";
       els.etaChip.classList.add("is-hidden");
       refreshLive();
@@ -659,6 +679,7 @@ require([
     }
 
     els.btnLocate.textContent = "Desactivar mi ubicación";
+    let centeredOnce = false;
     state.locateWatchId = navigator.geolocation.watchPosition(
       (pos) => {
         state.userPoint = new Point({
@@ -666,6 +687,15 @@ require([
           latitude: pos.coords.latitude
         });
         updateEta();
+        if (!centeredOnce) {
+          centeredOnce = true;
+          state.followCabecera = false;
+          els.btnFollow.classList.remove("is-active");
+          els.btnFollow.setAttribute("aria-pressed", "false");
+          view
+            .goTo({ center: state.userPoint, scale: 4000 })
+            .catch(() => {});
+        }
       },
       (err) => {
         console.warn(err);

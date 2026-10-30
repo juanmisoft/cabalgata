@@ -33,7 +33,7 @@ window.CABALGATA_CONFIG = {
     },
     finish: {
       name: "Meta",
-      detail: "Calle de la Fundición",
+      detail: "Final del recorrido",
       lon: -3.54545,
       lat: 40.35524
     }
@@ -43,7 +43,7 @@ window.CABALGATA_CONFIG = {
     /** Refresh de cabecera / calle / ETA (ms) */
     refreshMs: 12000,
     /** Se considera “en vivo” si el último fix tiene menos de N minutos */
-    liveWindowMinutes: 8,
+    liveWindowMinutes: 2,
     /** Ventana de velocidad media para ETA (minutos) */
     speedWindowMinutes: 4,
     /** Velocidad mínima (km/h) para calcular ETA; si es menor → detenida */
@@ -53,12 +53,27 @@ window.CABALGATA_CONFIG = {
     /** Buffer (m) para proyectar al ciudadano sobre la ruta */
     routeSnapMeters: 120,
     /** Minutos de estela GPS a mostrar */
-    trailMinutes: 3
+    trailMinutes: 3,
+    /** Solo el extremo final de la polyline (m restantes a lo largo de la ruta) */
+    finishThresholdMeters: 25
   },
 
   map: {
     basemap: "streets-navigation-vector",
     center: [-3.532, 40.352],
     zoom: 14
+  },
+
+  /**
+   * Contador de usuarios activos.
+   * Crea en AGOL una tabla/Feature Layer pública (Add+Update) con:
+   *   session_id (texto 64), last_seen (fecha)
+   * y pega aquí la URL .../FeatureServer/0
+   * Si layer es null, el chip se oculta.
+   */
+  presence: {
+    layer: null,
+    heartbeatMs: 25000,
+    activeMinutes: 2
   }
 };
