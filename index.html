@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#c20000" />
   <meta name="description" content="Sigue en directo el recorrido de la Cabalgata de Reyes de Rivas Vaciamadrid." />
   <title>Cabalgata de Reyes · Rivas Vaciamadrid</title>
-  <link rel="icon" href="assets/cabalgata-icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="assets/cabalgata-icon.svg?v=7" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Source+Sans+3:wght@400;600;650;700&display=swap" rel="stylesheet" />
@@ -62,12 +62,13 @@
       <span id="streetValue" class="value">Localizando…</span>
     </div>
     <div id="etaChip" class="info-chip eta is-hidden">
-      <span class="label">Tu tiempo de llegada</span>
+      <span class="label">Llega a tu zona</span>
       <span id="etaValue" class="value">Activa tu ubicación</span>
     </div>
     <div class="actions">
       <button id="btnLocate" class="btn-primary" type="button">Activar mi ubicación</button>
       <button id="btnFollow" class="btn-secondary is-active" type="button" aria-pressed="true">Seguir</button>
+      <button id="btnSim" class="btn-secondary" type="button" title="Simula la cabecera avanzando por la ruta">Simulacro</button>
     </div>
   </aside>
 </body>

@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Cabalgata de Reyes lanzando caramelos">
   <style>
     .glow { animation: pulse 2.4s ease-in-out infinite; }
-    .arm-c { transform-origin: 72px 70px; animation: toss-c 1.1s ease-in-out infinite; }
-    .arm-l { transform-origin: 29px 72px; animation: toss-l 1.25s ease-in-out infinite; }
-    .arm-r { transform-origin: 99px 72px; animation: toss-r 1.15s ease-in-out infinite 0.2s; }
+    .arm-c { transform-origin: 74px 66px; animation: toss-c 1.1s ease-in-out infinite; }
+    .arm-l { transform-origin: 18px 68px; animation: toss-l 1.25s ease-in-out infinite; }
+    .arm-r { transform-origin: 108px 68px; animation: toss-r 1.15s ease-in-out infinite 0.2s; }
     .candy1 { animation: candy-l 1.25s linear infinite; }
     .candy2 { animation: candy-c 1.1s linear infinite; }
     .candy3 { animation: candy-c2 1.1s linear infinite 0.15s; }
@@ -58,7 +58,7 @@
     }
   </style>
 
-  <!-- Fondo transparente a prop�sito: sin rect de fondo -->
+  <!-- Fondo transparente a propósito: sin rect de fondo -->
 
   <circle class="glow" cx="64" cy="68" r="50" fill="#ffb347" fill-opacity="0.28"/>
 
@@ -71,43 +71,78 @@
   <circle cx="90" cy="106" r="3" fill="#c9c9c9"/>
   <path d="M34 80 Q64 68 94 80" fill="#ffd56a"/>
 
-  <!-- Melchor -->
-  <g transform="translate(64 58)">
-    <ellipse cx="0" cy="18" rx="11" ry="14" fill="#f3d9a4"/>
-    <path d="M-10 10 Q0 24 10 10 L8 22 Q0 28 -8 22 Z" fill="#f5f0e6"/>
-    <circle cx="0" cy="2" r="9" fill="#f3d9a4"/>
-    <path d="M-8 -4 Q0 -14 8 -4 L6 2 Q0 6 -6 2 Z" fill="#d4a017"/>
-    <circle cx="-3.5" cy="0" r="1.1" fill="#2b2b2b"/>
-    <circle cx="3.5" cy="0" r="1.1" fill="#2b2b2b"/>
-    <path d="M-2 4 Q0 6 2 4" fill="none" stroke="#8a4b2b" stroke-width="1" stroke-linecap="round"/>
+  <!-- Gaspar: barba naranja y corona azul con puntas de oro -->
+  <g transform="translate(32 58)">
+    <path d="M0 -6 C-9 -9 -14 -2 -13 4 C-18 2 -17 12 -11 13 C-12 17 -5 18 0 15 C5 18 12 17 11 13 C17 12 18 2 13 4 C14 -2 9 -9 0 -6 Z" fill="#e36b24"/>
+    <path d="M-9 6 Q-5 12 -1 7" fill="none" stroke="#c45516" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M1 7 Q5 12 9 6" fill="none" stroke="#c45516" stroke-width="0.8" stroke-linecap="round"/>
+    <ellipse cx="-8.2" cy="-6" rx="2.1" ry="2.6" fill="#f0c4a0"/>
+    <ellipse cx="8.2" cy="-6" rx="2.1" ry="2.6" fill="#f0c4a0"/>
+    <ellipse cx="0" cy="-8" rx="7.6" ry="7.8" fill="#f8d7b4"/>
+    <path d="M-7.6 -14 Q0 -23 7.6 -14 V-10.6 H-7.6 Z" fill="#2f6fdb"/>
+    <path d="M-7.6 -13.2 L-5 -18.6 L-2.2 -13.2 Z" fill="#f6c431"/>
+    <path d="M-2.2 -14.2 L0 -20.4 L2.2 -14.2 Z" fill="#f6c431"/>
+    <path d="M2.2 -13.2 L5 -18.6 L7.6 -13.2 Z" fill="#f6c431"/>
+    <ellipse cx="-2.8" cy="-8.2" rx="2.3" ry="2.7" fill="#fff"/>
+    <ellipse cx="2.8" cy="-8.2" rx="2.3" ry="2.7" fill="#fff"/>
+    <circle cx="-2.3" cy="-7.6" r="1.2" fill="#2c241c"/>
+    <circle cx="3.3" cy="-7.6" r="1.2" fill="#2c241c"/>
+    <circle cx="-1.8" cy="-8.2" r="0.4" fill="#fff"/>
+    <circle cx="3.8" cy="-8.2" r="0.4" fill="#fff"/>
+    <path d="M-5 -11 Q-2.8 -12.4 -0.8 -11" fill="none" stroke="#e39a55" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M0.8 -11 Q2.8 -12.4 5 -11" fill="none" stroke="#e39a55" stroke-width="0.8" stroke-linecap="round"/>
+    <path d="M-1.5 -4.6 Q0 -3.2 1.5 -4.6" fill="none" stroke="#c4785a" stroke-width="0.8" stroke-linecap="round"/>
   </g>
-  <path class="arm-c" d="M72 70 L82 60" stroke="#f3d9a4" stroke-width="3.5" stroke-linecap="round"/>
 
-  <!-- Gaspar -->
-  <g transform="translate(38 62)">
-    <ellipse cx="0" cy="16" rx="10" ry="13" fill="#e8c49a"/>
-    <path d="M-9 8 Q0 20 9 8 L7 20 Q0 25 -7 20 Z" fill="#c45c26"/>
-    <circle cx="0" cy="1" r="8.2" fill="#e8c49a"/>
-    <path d="M-7 -4 Q0 -12 7 -4 L5 1 Q0 4 -5 1 Z" fill="#1f7a4d"/>
-    <rect x="-5" y="-8" width="10" height="3" rx="1" fill="#ffd56a"/>
-    <circle cx="-3" cy="-0.5" r="1" fill="#2b2b2b"/>
-    <circle cx="3" cy="-0.5" r="1" fill="#2b2b2b"/>
-    <path d="M-6 5 Q0 10 6 5 Q0 12 -6 5 Z" fill="#6b3a22"/>
+  <!-- Baltasar: turbante violeta, gema azul y barba negra -->
+  <g transform="translate(96 58)">
+    <path d="M-7.4 0 L-8.8 12 Q-4.4 18 0 17 Q4.4 18 8.8 12 L7.4 0 Q0 6 -7.4 0 Z" fill="#3a2a22"/>
+    <path d="M-5.4 12.4 Q0 16 5.4 12.4" fill="none" stroke="#2a1d16" stroke-width="0.8" stroke-linecap="round"/>
+    <ellipse cx="-8.6" cy="-4" rx="2" ry="2.5" fill="#7a4e34"/>
+    <ellipse cx="8.6" cy="-4" rx="2" ry="2.5" fill="#7a4e34"/>
+    <ellipse cx="0" cy="-4" rx="7.6" ry="8.2" fill="#8d5a3c"/>
+    <path d="M-10.6 -8 C-9.8 -17.2 -4.2 -20 0 -19.2 C4.2 -20 9.8 -17.2 10.6 -8 C6.8 -5.2 3.6 -5 0 -5.8 C-3.6 -5 -6.8 -5.2 -10.6 -8 Z" fill="#c4b0ee"/>
+    <path d="M-6.6 -8 C-3.6 -12.2 3.6 -12.2 6.6 -8" fill="none" stroke="#a892dc" stroke-width="1.15" stroke-linecap="round"/>
+    <path d="M0 -14.6 L1.7 -10.8 L0 -7.4 L-1.7 -10.8 Z" fill="#2ec4c0"/>
+    <path d="M-0.35 -13.2 L0.25 -11 L-0.15 -9.2 Z" fill="#e9fffd" opacity="0.85"/>
+    <path d="M-3.2 -18.4 L-1.6 -22.4 L0 -18.6 L1.6 -22.4 L3.2 -18.4 Z" fill="#f6c431"/>
+    <ellipse cx="-2.7" cy="-3.4" rx="2.2" ry="2.6" fill="#fff"/>
+    <ellipse cx="2.7" cy="-3.4" rx="2.2" ry="2.6" fill="#fff"/>
+    <circle cx="-2.2" cy="-2.8" r="1.15" fill="#1a120e"/>
+    <circle cx="3.2" cy="-2.8" r="1.15" fill="#1a120e"/>
+    <circle cx="-1.75" cy="-3.4" r="0.38" fill="#fff"/>
+    <circle cx="3.65" cy="-3.4" r="0.38" fill="#fff"/>
+    <path d="M-4.8 -6.2 Q-2.7 -7.6 -0.7 -6.2" fill="none" stroke="#3a2a22" stroke-width="0.75" stroke-linecap="round"/>
+    <path d="M0.7 -6.2 Q2.7 -7.6 4.8 -6.2" fill="none" stroke="#3a2a22" stroke-width="0.75" stroke-linecap="round"/>
+    <path d="M-1.5 0.2 Q0 1.6 1.5 0.2" fill="none" stroke="#5c3318" stroke-width="0.8" stroke-linecap="round"/>
   </g>
-  <path class="arm-l" d="M29 72 L18 62" stroke="#e8c49a" stroke-width="3.2" stroke-linecap="round"/>
 
-  <!-- Baltasar -->
-  <g transform="translate(90 62)">
-    <ellipse cx="0" cy="16" rx="10" ry="13" fill="#8d5a3c"/>
-    <path d="M-9 8 Q0 20 9 8 L7 20 Q0 25 -7 20 Z" fill="#4b2a78"/>
-    <circle cx="0" cy="1" r="8.2" fill="#8d5a3c"/>
-    <path d="M-7 -4 Q0 -13 7 -4 L5 1 Q0 5 -5 1 Z" fill="#ffd56a"/>
-    <circle cx="0" cy="-10" r="2.2" fill="#e8c49a"/>
-    <circle cx="-3" cy="-0.5" r="1" fill="#1a1a1a"/>
-    <circle cx="3" cy="-0.5" r="1" fill="#1a1a1a"/>
-    <path d="M-5 5 Q0 9 5 5 Q0 11 -5 5 Z" fill="#3a2318"/>
+  <!-- Melchor: barba blanca y corona de oro con rubíes -->
+  <g transform="translate(64 56)">
+    <ellipse cx="-10.4" cy="-4" rx="2.3" ry="3" fill="#f0c4a0"/>
+    <ellipse cx="10.4" cy="-4" rx="2.3" ry="3" fill="#f0c4a0"/>
+    <path d="M-12 -4 C-15 4 -11 14 -5 13 C-3 19 3 19 5 13 C11 14 15 4 12 -4 C8 0 4 1 0 0 C-4 1 -8 0 -12 -4 Z" fill="#f7f9fc"/>
+    <path d="M-7 4 Q-3 10 0 6 Q3 10 7 4" fill="none" stroke="#d5deea" stroke-width="0.8" stroke-linecap="round"/>
+    <ellipse cx="0" cy="-6" rx="8.8" ry="9.2" fill="#f8d7b4"/>
+    <path d="M-9 -12.5 L-6 -23 L-2 -13.5 L0 -25 L2 -13.5 L6 -23 L9 -12.5 Z" fill="#f6c431"/>
+    <path d="M-9 -12.5 H9 V-9.6 H-9 Z" fill="#e0a814"/>
+    <circle cx="-6" cy="-20.6" r="1.4" fill="#e23d3d"/>
+    <circle cx="0" cy="-22.4" r="1.5" fill="#e23d3d"/>
+    <circle cx="6" cy="-20.6" r="1.4" fill="#e23d3d"/>
+    <ellipse cx="-3.3" cy="-6.4" rx="2.45" ry="2.85" fill="#fff"/>
+    <ellipse cx="3.3" cy="-6.4" rx="2.45" ry="2.85" fill="#fff"/>
+    <circle cx="-2.8" cy="-5.8" r="1.25" fill="#2c241c"/>
+    <circle cx="3.8" cy="-5.8" r="1.25" fill="#2c241c"/>
+    <circle cx="-2.3" cy="-6.4" r="0.42" fill="#fff"/>
+    <circle cx="4.3" cy="-6.4" r="0.42" fill="#fff"/>
+    <path d="M-5.6 -9.4 Q-3.3 -11 -1 -9.3" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round"/>
+    <path d="M1 -9.3 Q3.3 -11 5.6 -9.4" fill="none" stroke="#fff" stroke-width="1" stroke-linecap="round"/>
+    <path d="M-1.7 -2.2 Q0 -0.6 1.7 -2.2" fill="none" stroke="#c4785a" stroke-width="0.85" stroke-linecap="round"/>
+    <path d="M-6  -1.2 Q0 3.2 6 -1.2 Q0 4.4 -6 -1.2 Z" fill="#fff"/>
   </g>
-  <path class="arm-r" d="M99 72 L110 63" stroke="#8d5a3c" stroke-width="3.2" stroke-linecap="round"/>
+  <path class="arm-l" d="M18 68 L8 54" stroke="#f3d9a4" stroke-width="3.2" stroke-linecap="round"/>
+  <path class="arm-c" d="M74 66 L82 52" stroke="#f3d9a4" stroke-width="3.5" stroke-linecap="round"/>
+  <path class="arm-r" d="M108 68 L118 54" stroke="#8d5a3c" stroke-width="3.2" stroke-linecap="round"/>
 
   <!-- Caramelos -->
   <g class="candy1" transform="translate(24 48)">

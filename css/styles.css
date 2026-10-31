@@ -226,6 +226,10 @@ body {
   color: var(--muted);
 }
 
+.status-chip[data-state="stopped"] {
+  color: var(--warn);
+}
+
 .viewers-chip {
   display: flex;
   align-items: baseline;
@@ -292,7 +296,12 @@ body {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.actions .btn-secondary {
+  flex: 0 0 auto;
 }
 
 .actions button {
