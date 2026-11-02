@@ -599,10 +599,17 @@ require([
     updateEta();
   }
 
+  /** Evita CDN/cache de la vista pública (cacheMaxAge ~30s) en consultas repetidas */
+  function liveQueryUrl(pathAndQuery) {
+    const join = pathAndQuery.includes("?") ? "&" : "?";
+    return `${pathAndQuery}${join}_ts=${Date.now()}`;
+  }
+
   async function fetchCabecera() {
-    const url =
+    const url = liveQueryUrl(
       CFG.layers.cabecera +
-      "/query?where=1%3D1&outFields=OBJECTID,FECHA,esrignss_speed,esrignss_latitude,esrignss_longitude&orderByFields=FECHA%20DESC&resultRecordCount=5&returnGeometry=true&outSR=4326&f=json";
+        "/query?where=1%3D1&outFields=OBJECTID,FECHA,esrignss_speed,esrignss_latitude,esrignss_longitude&orderByFields=FECHA%20DESC&resultRecordCount=5&returnGeometry=true&outSR=4326&f=json"
+    );
     const res = await esriRequest(url, { responseType: "json" });
     if (res.data?.error) {
       throw new Error(res.data.error.message || "Error consulta cabecera");
@@ -633,9 +640,10 @@ require([
     const where = encodeURIComponent(
       `FECHA BETWEEN CURRENT_TIMESTAMP - ${days} AND CURRENT_TIMESTAMP`
     );
-    const url =
+    const url = liveQueryUrl(
       CFG.layers.cabecera +
-      `/query?where=${where}&outFields=FECHA,esrignss_speed&orderByFields=FECHA%20ASC&returnGeometry=true&outSR=4326&f=json`;
+        `/query?where=${where}&outFields=FECHA,esrignss_speed&orderByFields=FECHA%20ASC&returnGeometry=true&outSR=4326&f=json`
+    );
     try {
       const res = await esriRequest(url, { responseType: "json" });
       const feats = res.data.features || [];

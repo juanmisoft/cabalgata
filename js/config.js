@@ -11,8 +11,13 @@ window.CABALGATA_CONFIG = {
   layers: {
     route:
       "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/recorrido_cabalgata/FeatureServer/0",
+    /**
+     * Vista pública de lectura (Query).
+     * No usar ubicacion_carrozas_cabalgata_vista_ESTRELLA: el 1-nov solo
+     * exponía 3 puntos frente a ~620 de esta vista (~1 punto/s).
+     */
     cabecera:
-      "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/ubicacion_carrozas_cabalgata_vista_ESTRELLA/FeatureServer/0",
+      "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/ubicacion_carrozas_cabalgata_vista/FeatureServer/0",
     /** Estela opcional (últimos minutos se filtran en cliente) */
     trail:
       "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/ubicacion_carrozas_cabalgata_vista/FeatureServer/0"
