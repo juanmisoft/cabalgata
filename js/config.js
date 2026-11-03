@@ -25,7 +25,11 @@ window.CABALGATA_CONFIG = {
 
   geocoder: {
     url: "https://sit.rivasciudad.es/server/rest/services/Localizador_rivas_1_3_1/GeocodeServer",
-    distanceMeters: 80
+    /** Radio corto: evita calles perpendiculares al trazado */
+    distanceMeters: 25,
+    /** Muestreo de calles solo sobre la polilínea del recorrido */
+    routeSampleMeters: 60,
+    routeSampleDistanceMeters: 20
   },
 
   /** Puntos de referencia del itinerario (WGS84). Se ajustan a extremos de la ruta al cargar. */

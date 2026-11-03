@@ -37,7 +37,10 @@ require([
     routeLength: 0,
     cabecera: null,
     cabeceraAlong: null,
-    streetCache: { text: null, at: 0, lon: null, lat: null },
+    streetCache: { text: null, at: 0, lon: null, lat: null, along: null },
+    /** Calles del trazado: [{ along, street, barrio, key }] */
+    routeStreets: [],
+    routeStreetKeys: null,
     userPoint: null,
     userGraphic: null,
     followCabecera: true,
@@ -84,6 +87,10 @@ require([
     try {
       await loadRoute();
       placeLandmarks();
+      // Índice de calles solo sobre la polilínea (no bloquea el arranque)
+      buildRouteStreetIndex().catch((err) =>
+        console.warn("street index", err)
+      );
     } catch (err) {
       console.error("loadRoute", err);
       setStatus("offline", "No se pudo cargar la ruta");
@@ -791,48 +798,179 @@ require([
     await drawCabecera(point);
   }
 
-  async function updateStreet(point) {
-    // Preferir atributo servidor si existiera
-    const cab = state.cabecera;
-    if (!cab) return;
+  function normalizeStreetKey(name) {
+    if (!name) return "";
+    return String(name)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/\b(CALLE|AVENIDA|AVDA|AV|PASEO|PZ|PLAZA|C\/|C\.)\b/g, "")
+      .replace(/[^A-Z0-9]+/g, " ")
+      .trim();
+  }
 
+  function formatStreetLabel(street, barrio) {
+    const b = barrio ? `, ${barrio}` : "";
+    return `${street}${b}`;
+  }
+
+  async function reverseStreetAt(point, distanceMeters) {
+    const result = await locator.locationToAddress(
+      CFG.geocoder.url,
+      {
+        location: point,
+        locationType: "street"
+      },
+      { distance: distanceMeters }
+    );
+    const addr = result?.attributes || {};
+    const street =
+      addr.ShortLabel ||
+      addr.Address ||
+      addr.Match_addr ||
+      result?.address ||
+      null;
+    if (!street) return null;
+    return {
+      street,
+      barrio: addr.Neighborhood || "",
+      key: normalizeStreetKey(street)
+    };
+  }
+
+  function streetFromRouteIndex(alongMeters) {
+    const samples = state.routeStreets;
+    if (!samples.length || alongMeters == null) return null;
+    let best = samples[0];
+    let bestD = Math.abs(samples[0].along - alongMeters);
+    for (let i = 1; i < samples.length; i++) {
+      const d = Math.abs(samples[i].along - alongMeters);
+      if (d < bestD) {
+        best = samples[i];
+        bestD = d;
+      }
+    }
+    // No usar un sample demasiado lejos (huecos del índice)
+    if (bestD > (CFG.geocoder.routeSampleMeters || 60) * 1.5) return null;
+    return formatStreetLabel(best.street, best.barrio);
+  }
+
+  async function buildRouteStreetIndex() {
+    if (!state.routeCoords.length || !state.routeLength) return;
+    const step = CFG.geocoder.routeSampleMeters || 60;
+    const dist = CFG.geocoder.routeSampleDistanceMeters || 20;
+    const samples = [];
+    const keys = new Set();
+    let along = 0;
+    let lastKey = "";
+    while (along <= state.routeLength) {
+      const pt = pointAlongRoute(along);
+      try {
+        const hit = await reverseStreetAt(pt, dist);
+        if (hit && hit.key && hit.key !== lastKey) {
+          samples.push({
+            along,
+            street: hit.street,
+            barrio: hit.barrio,
+            key: hit.key
+          });
+          keys.add(hit.key);
+          lastKey = hit.key;
+        } else if (hit && hit.key === lastKey && samples.length) {
+          // Extiende el tramo de la misma calle
+          samples[samples.length - 1].alongEnd = along;
+        }
+      } catch (e) {
+        // punto sin match; seguir
+      }
+      if (along >= state.routeLength) break;
+      along = Math.min(state.routeLength, along + step);
+    }
+    state.routeStreets = samples;
+    state.routeStreetKeys = keys;
+    console.info(
+      "route street index",
+      samples.length,
+      "tramos,",
+      keys.size,
+      "calles"
+    );
+  }
+
+  async function updateStreet(point) {
+    if (!state.cabecera) return;
+
+    const along = state.cabeceraAlong;
     const cached = state.streetCache;
-    const moved =
-      cached.lon == null ||
-      Geo.haversine(
-        [cached.lon, cached.lat],
-        [point.longitude, point.latitude]
-      ) > 25;
+    const movedAlong =
+      cached.along == null ||
+      along == null ||
+      Math.abs(along - cached.along) > 20;
     const stale = Date.now() - cached.at > 20000;
 
-    if (cached.text && !moved && !stale) {
+    // 1) Preferir calle del índice del trazado (solo calles de la polilínea)
+    if (state.routeStreets.length && along != null) {
+      const fromRoute = streetFromRouteIndex(along);
+      if (fromRoute) {
+        if (!movedAlong && cached.text === fromRoute && !stale) {
+          els.street.textContent = fromRoute;
+          return;
+        }
+        state.streetCache = {
+          text: fromRoute,
+          at: Date.now(),
+          lon: point.longitude,
+          lat: point.latitude,
+          along
+        };
+        els.street.textContent = fromRoute;
+        return;
+      }
+    }
+
+    if (cached.text && !movedAlong && !stale) {
       els.street.textContent = cached.text;
       return;
     }
 
+    // 2) Fallback: reverse geocode del punto YA proyectado sobre la ruta
     try {
-      const result = await locator.locationToAddress(
-        CFG.geocoder.url,
-        {
-          location: point,
-          locationType: "street"
-        },
-        { distance: CFG.geocoder.distanceMeters }
+      const hit = await reverseStreetAt(
+        point,
+        CFG.geocoder.distanceMeters || 25
       );
-      const addr = result?.attributes || {};
-      const street =
-        addr.ShortLabel ||
-        addr.Address ||
-        addr.Match_addr ||
-        result?.address ||
-        "Calle desconocida";
-      const barrio = addr.Neighborhood ? `, ${addr.Neighborhood}` : "";
-      const text = `${street}${barrio}`;
+      if (!hit) {
+        if (!cached.text) els.street.textContent = "Localizando calle…";
+        return;
+      }
+
+      // Si ya hay whitelist del trazado, rechazar perpendiculares
+      if (
+        state.routeStreetKeys &&
+        state.routeStreetKeys.size &&
+        !state.routeStreetKeys.has(hit.key)
+      ) {
+        const fromRoute = streetFromRouteIndex(along);
+        if (fromRoute) {
+          state.streetCache = {
+            text: fromRoute,
+            at: Date.now(),
+            lon: point.longitude,
+            lat: point.latitude,
+            along
+          };
+          els.street.textContent = fromRoute;
+          return;
+        }
+      }
+
+      const text = formatStreetLabel(hit.street, hit.barrio);
       state.streetCache = {
         text,
         at: Date.now(),
         lon: point.longitude,
-        lat: point.latitude
+        lat: point.latitude,
+        along
       };
       els.street.textContent = text;
     } catch (e) {
