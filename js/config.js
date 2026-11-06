@@ -20,16 +20,34 @@ window.CABALGATA_CONFIG = {
       "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/ubicacion_carrozas_cabalgata_vista/FeatureServer/0",
     /** Estela opcional (últimos minutos se filtran en cliente) */
     trail:
-      "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/ubicacion_carrozas_cabalgata_vista/FeatureServer/0"
+      "https://services5.arcgis.com/OvtDsNt9TdkMlaCZ/arcgis/rest/services/ubicacion_carrozas_cabalgata_vista/FeatureServer/0",
+    /**
+     * Ejes de calles (SIT Rivas) — item f831af56541f4edaa8a5538555ab8bb6
+     * Se cruzan con el recorrido; no se usa geocode para el chip de calle.
+     */
+    streets:
+      "https://sit.rivasciudad.es/server/rest/services/EJE_TRAZADO_ASFALTO/FeatureServer/0"
+  },
+
+  streets: {
+    nameField: "NOMBRECOMP",
+    /** Buffer (m) al consultar ejes que tocan el recorrido */
+    queryDistanceMeters: 15,
+    /** Distancia máx. punto-ruta → eje para asignar nombre */
+    matchDistanceMeters: 25,
+    /** Desvío máx. de rumbo (grados) para aceptar un eje (filtra perpendiculares) */
+    maxBearingDiffDeg: 55,
+    /** Paso de muestreo a lo largo del recorrido */
+    sampleMeters: 30
   },
 
   geocoder: {
     url: "https://sit.rivasciudad.es/server/rest/services/Localizador_rivas_1_3_1/GeocodeServer",
-    /** Radio corto: evita calles perpendiculares al trazado */
+    /** Solo fallback legado; el chip de calle usa capas de ejes */
     distanceMeters: 25,
-    /** Muestreo de calles solo sobre la polilínea del recorrido */
-    routeSampleMeters: 60,
-    routeSampleDistanceMeters: 20
+    routeSampleMeters: 50,
+    routeSampleDistanceMeters: 8,
+    minStreetSegmentMeters: 120
   },
 
   /** Puntos de referencia del itinerario (WGS84). Se ajustan a extremos de la ruta al cargar. */

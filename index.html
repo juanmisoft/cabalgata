@@ -11,15 +11,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Source+Sans+3:wght@400;600;650;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css" />
-  <link rel="stylesheet" href="css/styles.css?v=10" />
+  <link rel="stylesheet" href="css/styles.css?v=11" />
   <script>
     var dojoConfig = { async: true };
   </script>
-  <script src="js/config.js"></script>
+  <script src="js/config.js?v=18"></script>
   <script src="js/geometry.js"></script>
   <script src="js/presence.js"></script>
   <script src="https://js.arcgis.com/4.31/"></script>
-  <script src="js/app.js?v=10"></script>
+  <script src="js/app.js?v=18"></script>
 </head>
 <body>
   <div id="viewDiv" role="application" aria-label="Mapa del recorrido de la cabalgata"></div>
@@ -58,7 +58,7 @@
 
   <aside class="bottom-panel" aria-live="polite">
     <div class="info-chip street">
-      <span class="label">Ahora está en</span>
+      <span id="streetLabel" class="label">Ahora está en</span>
       <span id="streetValue" class="value">Localizando…</span>
     </div>
     <div id="etaChip" class="info-chip eta is-hidden">

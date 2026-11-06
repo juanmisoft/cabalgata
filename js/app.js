@@ -24,6 +24,7 @@ require([
 
   const els = {
     status: document.getElementById("statusChip"),
+    streetLabel: document.getElementById("streetLabel"),
     street: document.getElementById("streetValue"),
     etaChip: document.getElementById("etaChip"),
     etaValue: document.getElementById("etaValue"),
@@ -38,9 +39,11 @@ require([
     cabeceraAlong: null,
     colaAlong: null,
     streetCache: { text: null, at: 0, lon: null, lat: null, along: null },
-    /** Calles del trazado: [{ along, street, barrio, key }] */
+    /** Calles del trazado: [{ along, alongEnd, street, barrio, key }] */
     routeStreets: [],
     routeStreetKeys: null,
+    /** Tramos originales del FeatureServer ya proyectados sobre la ruta unida */
+    routeParts: [],
     userPoint: null,
     userGraphic: null,
     followCabecera: true,
@@ -90,13 +93,17 @@ require([
       await loadRoute();
       placeLandmarks();
       // Índice de calles solo sobre la polilínea (no bloquea el arranque)
-      buildRouteStreetIndex().catch((err) =>
-        console.warn("street index", err)
-      );
+      buildRouteStreetIndex()
+        .then(() => {
+          if (state.cabecera) {
+            return updateStreet(state.cabecera);
+          }
+        })
+        .catch((err) => console.warn("street index", err));
     } catch (err) {
       console.error("loadRoute", err);
       setStatus("offline", "No se pudo cargar la ruta");
-      els.street.textContent = "Error de carga de ruta";
+      setStreetDisplay("Ahora está en", "Error de carga de ruta");
       return;
     }
     try {
@@ -104,7 +111,7 @@ require([
     } catch (err) {
       console.error("refreshLive", err);
       setStatus("offline", "Posición no disponible");
-      els.street.textContent = "Sin señal de la cabecera";
+      setStreetDisplay("Ahora está en", "Sin señal de la cabecera");
     }
     setInterval(() => {
       refreshLive().catch((err) => console.error("refreshLive", err));
@@ -408,6 +415,21 @@ require([
     state.routeCoords = coords;
     state.routeLength = Geo.totalLength(coords);
 
+    // Cada feature del servicio = un tramo del recorrido (base del índice de calles)
+    state.routeParts = paths
+      .map((path) => {
+        if (!path || path.length < 2) return null;
+        const a = Geo.projectOnRoute(path[0], coords).distanceAlong;
+        const b = Geo.projectOnRoute(path[path.length - 1], coords).distanceAlong;
+        return {
+          along0: Math.min(a, b),
+          along1: Math.max(a, b),
+          length: Math.abs(b - a)
+        };
+      })
+      .filter(Boolean)
+      .sort((u, v) => u.along0 - v.along0);
+
     drawRouteSplit(0);
     if (coords.length > 1) {
       const polyline = new Polyline({
@@ -556,7 +578,10 @@ require([
       stopSmoothMotion();
       clearCabeceraMotion();
       setStatus("pending", "Aún no ha salido");
-      els.street.textContent = "Esperando salida en " + CFG.landmarks.start.detail;
+      setStreetDisplay(
+        "Ahora está en",
+        "Esperando salida en " + CFG.landmarks.start.detail
+      );
       drawRouteSplit(0);
       await showCabeceraAtStart();
       updateEta();
@@ -573,7 +598,10 @@ require([
       stopSmoothMotion();
       clearCabeceraMotion();
       setStatus("pending", "Aún no ha salido");
-      els.street.textContent = "Esperando salida en " + CFG.landmarks.start.detail;
+      setStreetDisplay(
+        "Ahora está en",
+        "Esperando salida en " + CFG.landmarks.start.detail
+      );
       drawRouteSplit(0);
       await showCabeceraAtStart();
       updateEta();
@@ -603,7 +631,10 @@ require([
         updateStreet: false
       });
       setStatus("ended", "Ha finalizado");
-      els.street.textContent = "Meta · " + CFG.landmarks.finish.detail;
+      setStreetDisplay(
+        "Ahora está en",
+        "Meta · " + CFG.landmarks.finish.detail
+      );
       updateEta();
       return;
     }
@@ -876,20 +907,33 @@ require([
     await drawCabecera(point);
   }
 
+  /** Quita portal/número: "AV ALMENDROS 2" → "Av Almendros" */
+  function cleanStreetName(raw) {
+    if (!raw) return "";
+    return String(raw)
+      .replace(/,.*$/, "")
+      .replace(/\b\d+[A-Za-z]?\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function normalizeStreetKey(name) {
     if (!name) return "";
-    return String(name)
+    return cleanStreetName(name)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase()
-      .replace(/\b(CALLE|AVENIDA|AVDA|AV|PASEO|PZ|PLAZA|C\/|C\.)\b/g, "")
+      .replace(/\b(CALLE|AVENIDA|AVDA|AV|PASEO|PZ|PLAZA|CL|C\/|C\.)\b/g, "")
       .replace(/[^A-Z0-9]+/g, " ")
+      .replace(/\b\d+[A-Z]?\b/g, "")
+      .replace(/\s+/g, " ")
       .trim();
   }
 
   function formatStreetLabel(street, barrio) {
+    const name = cleanStreetName(street) || street;
     const b = barrio ? `, ${barrio}` : "";
-    return `${street}${b}`;
+    return `${name}${b}`;
   }
 
   async function reverseStreetAt(point, distanceMeters) {
@@ -902,12 +946,19 @@ require([
       { distance: distanceMeters }
     );
     const addr = result?.attributes || {};
-    const street =
+    // Preferir nombre de vía sin portal (StName / ShortLabel limpio)
+    const composed =
+      [addr.StPreDir, addr.StName || addr.StreetName, addr.StType, addr.StDir]
+        .filter(Boolean)
+        .join(" ") || null;
+    const raw =
+      composed ||
       addr.ShortLabel ||
       addr.Address ||
       addr.Match_addr ||
       result?.address ||
       null;
+    const street = cleanStreetName(raw);
     if (!street) return null;
     return {
       street,
@@ -916,62 +967,323 @@ require([
     };
   }
 
-  function streetFromRouteIndex(alongMeters) {
+  function streetInfoFromRouteIndex(alongMeters) {
     const samples = state.routeStreets;
     if (!samples.length || alongMeters == null) return null;
-    let best = samples[0];
-    let bestD = Math.abs(samples[0].along - alongMeters);
-    for (let i = 1; i < samples.length; i++) {
-      const d = Math.abs(samples[i].along - alongMeters);
-      if (d < bestD) {
-        best = samples[i];
-        bestD = d;
+
+    // Cada tramo cubre [along_i, along_{i+1}) a lo largo de la ruta
+    // (antes se usaba el sample más cercano y fallaba cerca de cambios de calle)
+    let chosen = null;
+    if (alongMeters < samples[0].along) {
+      chosen = samples[0];
+    } else {
+      for (let i = 0; i < samples.length; i++) {
+        const start = samples[i].along;
+        const end =
+          i + 1 < samples.length
+            ? samples[i + 1].along
+            : state.routeLength > 0
+              ? state.routeLength
+              : samples[i].alongEnd != null
+                ? samples[i].alongEnd
+                : start;
+        if (alongMeters >= start && alongMeters < end) {
+          chosen = samples[i];
+          break;
+        }
+        if (i === samples.length - 1 && alongMeters >= start) {
+          chosen = samples[i];
+        }
       }
     }
-    // No usar un sample demasiado lejos (huecos del índice)
-    if (bestD > (CFG.geocoder.routeSampleMeters || 60) * 1.5) return null;
-    return formatStreetLabel(best.street, best.barrio);
+    if (!chosen) return null;
+
+    return {
+      street: chosen.street,
+      barrio: chosen.barrio,
+      key: chosen.key,
+      label: formatStreetLabel(chosen.street, chosen.barrio)
+    };
   }
 
+  function streetFromRouteIndex(alongMeters) {
+    const info = streetInfoFromRouteIndex(alongMeters);
+    return info ? info.label : null;
+  }
+
+  /**
+   * Ubicación ciudadana:
+   * - misma calle en cola y cabecera → "Ahora está en X"
+   * - calles distintas del RECORRIDO → "Ahora está entre X y Y"
+   */
+  function paradeStreetDisplay(headAlong) {
+    const colaAlong =
+      state.colaAlong != null
+        ? state.colaAlong
+        : colaAlongFromHead(headAlong);
+    const span = Math.max(0, (headAlong || 0) - (colaAlong || 0));
+
+    const head = streetInfoFromRouteIndex(headAlong);
+    if (!head) return null;
+
+    if (span < 40) {
+      return { label: "Ahora está en", text: head.label };
+    }
+
+    const cola = streetInfoFromRouteIndex(colaAlong);
+    if (!cola || cola.key === head.key) {
+      return { label: "Ahora está en", text: head.label };
+    }
+
+    // Solo nombres de vía del trazado (sin barrio ni portal)
+    return {
+      label: "Ahora está entre",
+      text: `${cola.street} y ${head.street}`
+    };
+  }
+
+  function setStreetDisplay(label, text) {
+    if (els.streetLabel && label) els.streetLabel.textContent = label;
+    if (text) els.street.textContent = text;
+  }
+
+  function bearingDeg(a, b) {
+    const lat1 = (a[1] * Math.PI) / 180;
+    const lat2 = (b[1] * Math.PI) / 180;
+    const dLon = ((b[0] - a[0]) * Math.PI) / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x =
+      Math.cos(lat1) * Math.sin(lat2) -
+      Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  }
+
+  function bearingDiffDeg(a, b) {
+    let d = Math.abs(a - b) % 180;
+    if (d > 90) d = 180 - d;
+    return d;
+  }
+
+  function routeBearingAt(alongMeters) {
+    const a = Math.max(0, alongMeters - 12);
+    const b = Math.min(state.routeLength, alongMeters + 12);
+    const pa = pointAlongRoute(a);
+    const pb = pointAlongRoute(b);
+    return bearingDeg(
+      [pa.longitude, pa.latitude],
+      [pb.longitude, pb.latitude]
+    );
+  }
+
+  function pathBearing(path) {
+    if (!path || path.length < 2) return null;
+    // Segmento más largo del eje
+    let best = null;
+    let bestLen = -1;
+    for (let i = 0; i < path.length - 1; i++) {
+      const len = Geo.haversine(path[i], path[i + 1]);
+      if (len > bestLen) {
+        bestLen = len;
+        best = bearingDeg(path[i], path[i + 1]);
+      }
+    }
+    return best;
+  }
+
+  function distancePointToPath(point, path) {
+    if (!path || path.length < 2) return Infinity;
+    const proj = Geo.projectOnRoute(point, path);
+    return proj.distanceToRoute;
+  }
+
+  function streetLabelFromAttrs(attrs) {
+    const field = (CFG.streets && CFG.streets.nameField) || "NOMBRECOMP";
+    return (
+      cleanStreetName(attrs[field]) ||
+      cleanStreetName(attrs.NOMBRECOMP) ||
+      cleanStreetName(attrs.CALNOMOFI) ||
+      cleanStreetName(attrs.NOMBREVIA) ||
+      null
+    );
+  }
+
+  /** Ejes que tocan el recorrido (buffer). Sin geocode. */
+  async function fetchStreetAxesAlongRoute() {
+    const url = CFG.layers.streets;
+    if (!url || !state.routeCoords.length) return [];
+    const dist = (CFG.streets && CFG.streets.queryDistanceMeters) || 15;
+    const geom = JSON.stringify({
+      paths: [state.routeCoords],
+      spatialReference: { wkid: 4326 }
+    });
+    const res = await esriRequest(url + "/query", {
+      responseType: "json",
+      method: "post",
+      query: {
+        f: "json",
+        geometry: geom,
+        geometryType: "esriGeometryPolyline",
+        inSR: "4326",
+        spatialRel: "esriSpatialRelIntersects",
+        distance: String(dist),
+        units: "esriSRUnit_Meter",
+        outFields: "NOMBRECOMP,NOMBREVIA,CLASEVIA,CALNOMOFI,CALNOMCOR",
+        returnGeometry: true,
+        outSR: "4326"
+      }
+    });
+    if (res.data?.error) {
+      throw new Error(res.data.error.message || "Error ejes de calles");
+    }
+    return (res.data.features || [])
+      .map((f) => {
+        const paths = f.geometry?.paths || [];
+        const name = streetLabelFromAttrs(f.attributes || {});
+        if (!name || !paths.length) return null;
+        return {
+          street: name,
+          key: normalizeStreetKey(name),
+          paths,
+          bearing: pathBearing(paths[0])
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function nearestRouteStreet(pointLonLat, routeBearing, axes) {
+    const maxDist = (CFG.streets && CFG.streets.matchDistanceMeters) || 25;
+    const maxBear = (CFG.streets && CFG.streets.maxBearingDiffDeg) || 55;
+    let best = null;
+    let bestDist = Infinity;
+    axes.forEach((axis) => {
+      axis.paths.forEach((path) => {
+        const d = distancePointToPath(pointLonLat, path);
+        if (d > maxDist || d >= bestDist) return;
+        // Perpendiculares: lejos del eje del recorrido y rumbo cruzado
+        if (
+          d > 10 &&
+          axis.bearing != null &&
+          routeBearing != null &&
+          bearingDiffDeg(routeBearing, axis.bearing) > maxBear
+        ) {
+          return;
+        }
+        bestDist = d;
+        best = axis;
+      });
+    });
+    return best;
+  }
+
+  /**
+   * Índice de calles del recorrido a partir de EJE_TRAZADO_ASFALTO
+   * (solo ejes cercanos y alineados con la polilínea → no Calle del Sol).
+   */
   async function buildRouteStreetIndex() {
     if (!state.routeCoords.length || !state.routeLength) return;
-    const step = CFG.geocoder.routeSampleMeters || 60;
-    const dist = CFG.geocoder.routeSampleDistanceMeters || 20;
-    const samples = [];
-    const keys = new Set();
+    const step = (CFG.streets && CFG.streets.sampleMeters) || 30;
+
+    let axes = [];
+    try {
+      axes = await fetchStreetAxesAlongRoute();
+    } catch (e) {
+      console.warn("street axes", e);
+      return;
+    }
+    if (!axes.length) {
+      console.warn("street axes: ninguna calle cerca del recorrido");
+      return;
+    }
+
+    const raw = [];
     let along = 0;
-    let lastKey = "";
     while (along <= state.routeLength) {
       const pt = pointAlongRoute(along);
-      try {
-        const hit = await reverseStreetAt(pt, dist);
-        if (hit && hit.key && hit.key !== lastKey) {
-          samples.push({
-            along,
-            street: hit.street,
-            barrio: hit.barrio,
-            key: hit.key
-          });
-          keys.add(hit.key);
-          lastKey = hit.key;
-        } else if (hit && hit.key === lastKey && samples.length) {
-          // Extiende el tramo de la misma calle
-          samples[samples.length - 1].alongEnd = along;
-        }
-      } catch (e) {
-        // punto sin match; seguir
+      const lonlat = [pt.longitude, pt.latitude];
+      const rb = routeBearingAt(along);
+      const hit = nearestRouteStreet(lonlat, rb, axes);
+      if (hit) {
+        raw.push({
+          along,
+          street: hit.street,
+          barrio: "",
+          key: hit.key
+        });
       }
       if (along >= state.routeLength) break;
       along = Math.min(state.routeLength, along + step);
     }
-    state.routeStreets = samples;
+
+    const samples = [];
+    raw.forEach((h) => {
+      if (!h || !h.key) return;
+      const prev = samples[samples.length - 1];
+      if (prev && prev.key === h.key) {
+        prev.alongEnd = h.along;
+      } else {
+        samples.push({
+          along: h.along,
+          alongEnd: h.along,
+          street: h.street,
+          barrio: "",
+          key: h.key
+        });
+      }
+    });
+    if (samples.length) {
+      samples[0].along = 0;
+      samples[samples.length - 1].alongEnd = state.routeLength;
+      for (let i = 0; i < samples.length - 1; i++) {
+        samples[i].alongEnd = samples[i + 1].along;
+      }
+    }
+
+    // Absorbe tramos muy cortos (ruido residual en rotondas)
+    const minLen = 80;
+    let cleaned = samples.slice();
+    let changed = true;
+    while (changed && cleaned.length > 1) {
+      changed = false;
+      for (let i = 0; i < cleaned.length; i++) {
+        const len = cleaned[i].alongEnd - cleaned[i].along;
+        if (len < minLen) {
+          if (i > 0) {
+            cleaned[i - 1].alongEnd = cleaned[i].alongEnd;
+            cleaned.splice(i, 1);
+          } else {
+            cleaned[1].along = cleaned[0].along;
+            cleaned.splice(0, 1);
+          }
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (cleaned.length) {
+      cleaned[0].along = 0;
+      cleaned[cleaned.length - 1].alongEnd = state.routeLength;
+      for (let i = 0; i < cleaned.length - 1; i++) {
+        cleaned[i].alongEnd = cleaned[i + 1].along;
+      }
+    }
+
+    const keys = Object.create(null);
+    cleaned.forEach((s) => {
+      keys[s.key] = true;
+    });
+    state.routeStreets = cleaned;
     state.routeStreetKeys = keys;
+    state.streetCache = {
+      text: null,
+      at: 0,
+      lon: null,
+      lat: null,
+      along: null
+    };
     console.info(
-      "route street index",
-      samples.length,
-      "tramos,",
-      keys.size,
-      "calles"
+      "route street index (ejes) →",
+      cleaned.map((s) => s.street).join(" → "),
+      `| ${axes.length} ejes cerca`
     );
   }
 
@@ -986,76 +1298,34 @@ require([
       Math.abs(along - cached.along) > 20;
     const stale = Date.now() - cached.at > 20000;
 
-    // 1) Preferir calle del índice del trazado (solo calles de la polilínea)
+    // Solo calles del recorrido (índice limpio). Nunca geocode directo del punto:
+    // en cruces el localizador devuelve perpendiculares (p.ej. Calle del Sol).
     if (state.routeStreets.length && along != null) {
-      const fromRoute = streetFromRouteIndex(along);
-      if (fromRoute) {
-        if (!movedAlong && cached.text === fromRoute && !stale) {
-          els.street.textContent = fromRoute;
+      const display = paradeStreetDisplay(along);
+      if (display) {
+        if (!movedAlong && cached.text === display.text && !stale) {
+          setStreetDisplay(display.label, display.text);
           return;
         }
         state.streetCache = {
-          text: fromRoute,
+          text: display.text,
           at: Date.now(),
           lon: point.longitude,
           lat: point.latitude,
           along
         };
-        els.street.textContent = fromRoute;
+        setStreetDisplay(display.label, display.text);
         return;
       }
     }
 
     if (cached.text && !movedAlong && !stale) {
-      els.street.textContent = cached.text;
+      setStreetDisplay(null, cached.text);
       return;
     }
 
-    // 2) Fallback: reverse geocode del punto YA proyectado sobre la ruta
-    try {
-      const hit = await reverseStreetAt(
-        point,
-        CFG.geocoder.distanceMeters || 25
-      );
-      if (!hit) {
-        if (!cached.text) els.street.textContent = "Localizando calle…";
-        return;
-      }
-
-      // Si ya hay whitelist del trazado, rechazar perpendiculares
-      if (
-        state.routeStreetKeys &&
-        state.routeStreetKeys.size &&
-        !state.routeStreetKeys.has(hit.key)
-      ) {
-        const fromRoute = streetFromRouteIndex(along);
-        if (fromRoute) {
-          state.streetCache = {
-            text: fromRoute,
-            at: Date.now(),
-            lon: point.longitude,
-            lat: point.latitude,
-            along
-          };
-          els.street.textContent = fromRoute;
-          return;
-        }
-      }
-
-      const text = formatStreetLabel(hit.street, hit.barrio);
-      state.streetCache = {
-        text,
-        at: Date.now(),
-        lon: point.longitude,
-        lat: point.latitude,
-        along
-      };
-      els.street.textContent = text;
-    } catch (e) {
-      console.warn("reverse geocode", e);
-      if (!cached.text) {
-        els.street.textContent = "Localizando calle…";
-      }
+    if (!cached.text) {
+      setStreetDisplay("Ahora está en", "Localizando calle…");
     }
   }
 
