@@ -262,6 +262,16 @@
     return out.length ? out : [coords[coords.length - 1]];
   }
 
+  /** Tramo de la polyline entre two distancias a lo largo (metros) */
+  function sliceBetween(coords, fromMeters, toMeters) {
+    if (!coords.length) return [];
+    const a = Math.max(0, Math.min(fromMeters, toMeters));
+    const b = Math.max(fromMeters, toMeters);
+    const fromHere = remainingFrom(coords, a);
+    if (fromHere.length < 2) return fromHere;
+    return sliceAlong(fromHere, Math.max(0, b - a));
+  }
+
   global.CabalgataGeometry = {
     haversine,
     stitchPaths,
@@ -270,6 +280,7 @@
     distanceBetweenAlong,
     totalLength,
     sliceAlong,
-    remainingFrom
+    remainingFrom,
+    sliceBetween
   };
 })(window);

@@ -51,8 +51,11 @@ window.CABALGATA_CONFIG = {
   timing: {
     /** Refresh de cabecera / calle / ETA (ms) — más fluido en campo */
     refreshMs: 3000,
-    /** “En curso” si el último punto tiene menos de N minutos */
-    liveWindowMinutes: 3,
+    /**
+     * Sin puntos nuevos durante estos segundos → estado «Detenida»
+     * (antes eran minutos; ahora responde enseguida a pausas).
+     */
+    stoppedAfterSeconds: 45,
     /**
      * Si el último punto es más antiguo que esto, se trata como otro día
      * (Aún no ha salido). Pausas del evento → Detenida, no este caso.
@@ -68,16 +71,20 @@ window.CABALGATA_CONFIG = {
     maxEtaSpeedKmh: 6,
     /** Buffer (m) para proyectar al ciudadano sobre la ruta */
     routeSnapMeters: 250,
+    /**
+     * Longitud estimada de la comitiva (moto cabecera → Reyes al final).
+     * La cola = cabecera − esta distancia a lo largo de la ruta.
+     */
+    paradeLengthMeters: 200,
     /** ETA: mensajes según metros restantes a lo largo de la ruta */
     etaArrivingMeters: 40,
     etaSoonMeters: 150,
+    /** “Ya ha pasado” solo cuando la COLA supera al ciudadano */
     etaPassedMeters: 40,
     /** Minutos de estela GPS a mostrar */
     trailMinutes: 3,
     /** Solo el extremo final de la polyline (m restantes a lo largo de la ruta) */
     finishThresholdMeters: 25,
-    /** Simulacro: avance a lo largo de la ruta (km/h) */
-    simulationSpeedKmh: 4,
     /** Animación del icono sobre la ruta (ms entre frames) */
     smoothMs: 100,
     /** Segundos para alcanzar un punto GPS adelantado sin salto */

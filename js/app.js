@@ -28,8 +28,7 @@ require([
     etaChip: document.getElementById("etaChip"),
     etaValue: document.getElementById("etaValue"),
     btnLocate: document.getElementById("btnLocate"),
-    btnFollow: document.getElementById("btnFollow"),
-    btnSim: document.getElementById("btnSim")
+    btnFollow: document.getElementById("btnFollow")
   };
 
   const state = {
@@ -37,6 +36,7 @@ require([
     routeLength: 0,
     cabecera: null,
     cabeceraAlong: null,
+    colaAlong: null,
     streetCache: { text: null, at: 0, lon: null, lat: null, along: null },
     /** Calles del trazado: [{ along, street, barrio, key }] */
     routeStreets: [],
@@ -49,9 +49,6 @@ require([
     cabeceraMarker: null,
     cabeceraWatchHandles: [],
     iconSvgHtml: null,
-    simulating: false,
-    simAlong: 0,
-    simTimer: null,
     displayAlong: null,
     lastFixAlong: null,
     lastFixAt: 0,
@@ -61,7 +58,9 @@ require([
     lastFollowAt: 0,
     lastRoutePaintAlong: null,
     lastStreetTickAt: 0,
-    cabeceraHalo: null
+    cabeceraHalo: null,
+    paradeBodyGraphic: null,
+    colaGraphic: null
   };
 
   const routeLayer = new GraphicsLayer({ title: "Recorrido", listMode: "hide" });
@@ -114,13 +113,13 @@ require([
     state.followCabecera = !state.followCabecera;
     els.btnFollow.classList.toggle("is-active", state.followCabecera);
     els.btnFollow.setAttribute("aria-pressed", String(state.followCabecera));
+    els.btnFollow.textContent = state.followCabecera
+      ? "Desactivar seguimiento"
+      : "Activar Seguimiento";
     if (state.followCabecera && state.cabecera) {
       view.goTo({ center: state.cabecera, scale: 5000 }).catch(() => {});
     }
   });
-  if (els.btnSim) {
-    els.btnSim.addEventListener("click", toggleSimulation);
-  }
 
   /** esrignss_speed de Esri viene en m/s → km/h */
   function gnssSpeedToKmh(raw) {
@@ -136,63 +135,18 @@ require([
     return Math.min(Math.max(measured, def * 0.6), maxEta);
   }
 
+  function paradeLengthM() {
+    return CFG.timing.paradeLengthMeters || 450;
+  }
+
+  function colaAlongFromHead(headAlong) {
+    return Math.max(0, (headAlong || 0) - paradeLengthM());
+  }
+
   function pointAlongRoute(alongMeters) {
     const coords = Geo.sliceAlong(state.routeCoords, alongMeters);
     const c = coords[coords.length - 1] || state.routeCoords[0];
     return new Point({ longitude: c[0], latitude: c[1] });
-  }
-
-  function toggleSimulation() {
-    if (state.simulating) {
-      stopSimulation();
-      return;
-    }
-    if (!state.routeCoords.length) return;
-    stopSmoothMotion();
-    state.simulating = true;
-    state.simAlong = 0;
-    state.speedKmh = CFG.timing.simulationSpeedKmh || CFG.timing.defaultSpeedKmh;
-    els.btnSim.classList.add("is-active");
-    els.btnSim.textContent = "Parar simulacro";
-    setStatus("live", "Simulacro");
-    // Ciudadano de prueba a ~60% del recorrido si no hay GPS
-    if (!state.userPoint) {
-      const mid = state.routeLength * 0.6;
-      state.userPoint = pointAlongRoute(mid);
-      drawUser(state.userPoint, true);
-      els.etaChip.classList.remove("is-hidden");
-    }
-    const stepMs = 500;
-    const metersPerMs =
-      ((CFG.timing.simulationSpeedKmh || 4) * 1000) / 3600000;
-    state.simTimer = setInterval(() => {
-      state.simAlong = Math.min(
-        state.routeLength,
-        state.simAlong + metersPerMs * stepMs
-      );
-      applyCabeceraAlong(state.simAlong, true);
-      if (state.simAlong >= state.routeLength - 1) {
-        setStatus("ended", "Ha finalizado");
-        els.street.textContent = "Meta · " + CFG.landmarks.finish.detail;
-        stopSimulation(false);
-      }
-    }, stepMs);
-    applyCabeceraAlong(0, true);
-  }
-
-  function stopSimulation(resetLabel) {
-    state.simulating = false;
-    if (state.simTimer) {
-      clearInterval(state.simTimer);
-      state.simTimer = null;
-    }
-    if (els.btnSim && resetLabel !== false) {
-      els.btnSim.classList.remove("is-active");
-      els.btnSim.textContent = "Simulacro";
-    } else if (els.btnSim) {
-      els.btnSim.classList.remove("is-active");
-      els.btnSim.textContent = "Simulacro";
-    }
   }
 
   function stopSmoothMotion() {
@@ -207,6 +161,15 @@ require([
   function clearCabeceraMotion() {
     state.cabecera = null;
     state.cabeceraAlong = null;
+    state.colaAlong = null;
+    if (state.paradeBodyGraphic) {
+      liveLayer.remove(state.paradeBodyGraphic);
+      state.paradeBodyGraphic = null;
+    }
+    if (state.colaGraphic) {
+      liveLayer.remove(state.colaGraphic);
+      state.colaGraphic = null;
+    }
     state.displayAlong = null;
     state.lastFixAlong = null;
     state.lastRoutePaintAlong = null;
@@ -218,7 +181,7 @@ require([
   }
 
   function startSmoothMotion() {
-    if (state.smoothTimer || state.simulating) return;
+    if (state.smoothTimer) return;
     state.smoothLastTick = Date.now();
     const stepMs = CFG.timing.smoothMs || 100;
     state.smoothTimer = setInterval(() => {
@@ -242,7 +205,7 @@ require([
   }
 
   async function tickSmoothMotion() {
-    if (state.simulating || state.lastFixAlong == null || !state.routeCoords.length) {
+    if (state.lastFixAlong == null || !state.routeCoords.length) {
       return;
     }
     const now = Date.now();
@@ -286,6 +249,7 @@ require([
     state.cabecera = point;
     state.cabeceraAlong = alongMeters;
     state.displayAlong = alongMeters;
+    state.colaAlong = colaAlongFromHead(alongMeters);
 
     if (options.paintRoute) {
       const last = state.lastRoutePaintAlong;
@@ -295,6 +259,7 @@ require([
       }
     }
 
+    drawParadeBody(alongMeters);
     await drawCabecera(point);
 
     if (options.follow && state.followCabecera) {
@@ -312,26 +277,78 @@ require([
     }
   }
 
-  async function applyCabeceraAlong(alongMeters, isLive) {
-    await paintCabeceraAlong(alongMeters, {
-      paintRoute: true,
-      follow: true,
-      updateStreet: false
-    });
-    if (isLive) {
-      const nearEnd =
-        state.routeLength - alongMeters < CFG.timing.finishThresholdMeters;
-      if (nearEnd) {
-        setStatus("ended", "Ha finalizado");
-        els.street.textContent = "Meta · " + CFG.landmarks.finish.detail;
+  /** Dibuja la comitiva (cabecera → cola / Reyes) sobre la ruta */
+  function drawParadeBody(headAlong) {
+    const cola = colaAlongFromHead(headAlong);
+    state.colaAlong = cola;
+    if (!state.routeCoords.length || headAlong <= 1) {
+      if (state.paradeBodyGraphic) {
+        liveLayer.remove(state.paradeBodyGraphic);
+        state.paradeBodyGraphic = null;
+      }
+      if (state.colaGraphic) {
+        liveLayer.remove(state.colaGraphic);
+        state.colaGraphic = null;
+      }
+      return;
+    }
+
+    const bodyPath = Geo.sliceBetween(state.routeCoords, cola, headAlong);
+    const bodyGeom =
+      bodyPath.length > 1
+        ? new Polyline({
+            paths: [bodyPath],
+            spatialReference: { wkid: 4326 }
+          })
+        : null;
+    const colaPt = pointAlongRoute(cola);
+
+    if (bodyGeom) {
+      if (
+        state.paradeBodyGraphic &&
+        liveLayer.graphics.indexOf(state.paradeBodyGraphic) >= 0
+      ) {
+        state.paradeBodyGraphic.geometry = bodyGeom;
       } else {
-        setStatus("live", state.simulating ? "Simulacro" : "En curso");
-        if (state.simulating) {
-          els.street.textContent = "Simulación a lo largo del recorrido";
-        }
+        state.paradeBodyGraphic = new Graphic({
+          geometry: bodyGeom,
+          symbol: {
+            type: "simple-line",
+            color: [194, 0, 0, 0.45],
+            width: 14,
+            cap: "round",
+            join: "round"
+          }
+        });
+        liveLayer.add(state.paradeBodyGraphic);
       }
     }
-    updateEta();
+
+    const colaSymbol = {
+      type: "picture-marker",
+      url: new URL("assets/cola-reyes.svg?v=1", window.location.href).href,
+      width: "40px",
+      height: "40px",
+      yoffset: 14
+    };
+    if (
+      state.colaGraphic &&
+      liveLayer.graphics.indexOf(state.colaGraphic) >= 0
+    ) {
+      state.colaGraphic.geometry = colaPt;
+      state.colaGraphic.symbol = colaSymbol;
+    } else {
+      state.colaGraphic = new Graphic({
+        geometry: colaPt,
+        symbol: colaSymbol,
+        attributes: { title: "Cola · Reyes Magos" },
+        popupTemplate: {
+          title: "Final de la cabalgata",
+          content: "Zona aproximada de los Reyes Magos (cola de la comitiva)."
+        }
+      });
+      liveLayer.add(state.colaGraphic);
+    }
   }
 
   async function loadRoute() {
@@ -499,8 +516,6 @@ require([
   }
 
   async function refreshLive() {
-    if (state.simulating) return;
-
     const cab = await fetchCabecera();
     const speeds = await fetchRecentSpeeds();
     if (speeds.length) {
@@ -531,8 +546,9 @@ require([
       return;
     }
 
-    const ageMin = (Date.now() - cab.fecha) / 60000;
-    const liveLimit = CFG.timing.liveWindowMinutes;
+    const ageSec = (Date.now() - cab.fecha) / 1000;
+    const ageMin = ageSec / 60;
+    const stoppedAfter = CFG.timing.stoppedAfterSeconds || 45;
     const eventMaxAgeMin = (CFG.timing.eventMaxAgeHours || 18) * 60;
 
     // Puntos de otro día / pruebas viejas → tratar como sin salida
@@ -556,7 +572,7 @@ require([
     const nearEnd =
       state.routeLength > 0 &&
       alongLeft < CFG.timing.finishThresholdMeters;
-    const isLive = ageMin <= liveLimit;
+    const isLive = ageSec <= stoppedAfter;
 
     if (nearEnd && isLive) {
       fixAlong = state.routeLength;
@@ -589,11 +605,10 @@ require([
     }
 
     if (isLive) {
-      // Grabando ahora (o reanudó tras una pausa)
       setStatus("live", "En curso");
       startSmoothMotion();
     } else {
-      // Ya inició, pero lleva un rato sin puntos nuevos
+      // Sin puntos nuevos durante stoppedAfterSeconds
       stopSmoothMotion();
       setStatus("stopped", "Detenida");
       await paintCabeceraAlong(fixAlong, {
@@ -983,17 +998,23 @@ require([
 
   function formatEtaMinutes(remainingMeters, speedKmh) {
     const minutesExact = (remainingMeters / 1000 / speedKmh) * 60;
-    if (minutesExact < 1) return { text: "~1 min", exact: minutesExact };
+    if (minutesExact < 1.5) {
+      return { text: "menos de 2 minutos aproximados", exact: minutesExact };
+    }
     if (minutesExact < 60) {
-      const minutes = Math.max(1, Math.round(minutesExact));
-      return { text: `~${minutes} min`, exact: minutesExact };
+      const minutes = Math.max(2, Math.round(minutesExact));
+      return {
+        text: `${minutes} minutos aproximados`,
+        exact: minutesExact
+      };
     }
     const h = Math.floor(minutesExact / 60);
     const m = Math.round(minutesExact % 60);
-    return {
-      text: m > 0 ? `~${h} h ${m} min` : `~${h} h`,
-      exact: minutesExact
-    };
+    const text =
+      m > 0
+        ? `${h} h y ${m} minutos aproximados`
+        : `${h} horas aproximadas`;
+    return { text, exact: minutesExact };
   }
 
   function updateEta() {
@@ -1024,55 +1045,89 @@ require([
       return;
     }
 
-    // Metros restantes a lo largo de la polilínea (cabecera → tu tramo)
-    const remaining = Geo.distanceBetweenAlong(
-      state.cabeceraAlong,
-      userProj.distanceAlong
-    );
+    const headAlong = state.cabeceraAlong;
+    const colaAlong =
+      state.colaAlong != null ? state.colaAlong : colaAlongFromHead(headAlong);
+    const userAlong = userProj.distanceAlong;
     const arrivingM = CFG.timing.etaArrivingMeters || 40;
     const soonM = CFG.timing.etaSoonMeters || 150;
     const passedM = CFG.timing.etaPassedMeters || 40;
 
-    if (remaining < -passedM) {
+    // Solo “ya ha pasado” cuando la COLA (Reyes) supera tu zona
+    if (colaAlong > userAlong + passedM) {
       els.etaValue.textContent = "Ya ha pasado por tu zona";
       return;
     }
 
+    // Dentro de la comitiva (entre cola/Reyes y cabecera/moto)
+    if (userAlong >= colaAlong && userAlong <= headAlong) {
+      if (headAlong - userAlong <= arrivingM) {
+        els.etaValue.textContent = "¡Está llegando la cabecera!";
+      } else {
+        els.etaValue.textContent = "La comitiva está pasando por tu zona";
+      }
+      return;
+    }
+
+    // Aún no llega: el ciudadano está delante de la cabecera en la ruta
+    const metersUntilHead = userAlong - headAlong;
+    if (metersUntilHead < 0) {
+      els.etaValue.textContent = "La comitiva está pasando por tu zona";
+      return;
+    }
+
     const speed = etaSpeedKmh();
-    const estimated =
-      state.speedKmh < CFG.timing.minSpeedKmh ? " · ritmo estimado" : "";
+    const stopped =
+      state.speedKmh < CFG.timing.minSpeedKmh ||
+      els.status.dataset.state === "stopped";
 
-    if (remaining <= arrivingM) {
-      els.etaValue.textContent = "¡Está llegando!";
+    if (metersUntilHead <= arrivingM) {
+      els.etaValue.textContent = "¡Está llegando la cabecera!";
       return;
     }
 
-    const eta = formatEtaMinutes(remaining, speed);
-    if (remaining <= soonM) {
-      els.etaValue.textContent = `${eta.text} · muy cerca${estimated}`;
-      return;
+    const eta = formatEtaMinutes(metersUntilHead, speed);
+    let text = `Quedan ${eta.text} para llegar a tu zona`;
+    if (stopped) {
+      text += " (ahora está detenida; se recalculará al reanudar)";
+    } else if (metersUntilHead <= soonM) {
+      text += " · muy cerca";
     }
+    els.etaValue.textContent = text;
+  }
 
-    els.etaValue.textContent = `${eta.text}${estimated}`;
+  function userIconUrl() {
+    return new URL("assets/nino-ilusion.svg?v=1", window.location.href).href;
   }
 
   function drawUser(point, onRoute) {
     const symbol = {
-      type: "simple-marker",
-      style: "circle",
-      color: onRoute ? [30, 90, 180, 1] : [120, 120, 120, 1],
-      size: 10,
-      outline: { color: [255, 255, 255, 1], width: 2 }
+      type: "picture-marker",
+      url: userIconUrl(),
+      width: "44px",
+      height: "44px",
+      yoffset: 16
     };
     if (state.userGraphic) {
       state.userGraphic.geometry = point;
       state.userGraphic.symbol = symbol;
+      state.userGraphic.attributes = {
+        title: onRoute ? "Tu ubicación (en el recorrido)" : "Tu ubicación"
+      };
       if (liveLayer.graphics.indexOf(state.userGraphic) < 0) {
         liveLayer.add(state.userGraphic);
       }
       return;
     }
-    state.userGraphic = new Graphic({ geometry: point, symbol });
+    state.userGraphic = new Graphic({
+      geometry: point,
+      symbol,
+      attributes: { title: "Tu ubicación" },
+      popupTemplate: {
+        title: "Tú",
+        content: "Niño esperando ilusionado la cabalgata."
+      }
+    });
     liveLayer.add(state.userGraphic);
   }
 
@@ -1111,6 +1166,7 @@ require([
           state.followCabecera = false;
           els.btnFollow.classList.remove("is-active");
           els.btnFollow.setAttribute("aria-pressed", "false");
+          els.btnFollow.textContent = "Activar Seguimiento";
           view
             .goTo({ center: state.userPoint, scale: 4000 })
             .catch(() => {});
