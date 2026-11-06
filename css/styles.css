@@ -131,7 +131,9 @@ body {
   background: rgba(255, 255, 255, 0.85);
 }
 
-.cabecera-marker {
+.cabecera-marker,
+.cola-marker,
+.user-marker {
   position: fixed;
   top: 0;
   left: 0;
@@ -145,24 +147,55 @@ body {
   background: transparent;
 }
 
-.cabecera-marker-inner {
+.cola-marker {
+  width: 56px;
+  height: 56px;
+  margin: -48px 0 0 -28px;
+  z-index: 4;
+}
+
+.user-marker {
+  width: 64px;
+  height: 64px;
+  margin: -56px 0 0 -32px;
+  z-index: 6;
+}
+
+.user-marker.is-offroute {
+  opacity: 0.65;
+  filter: grayscale(0.35);
+}
+
+.cabecera-marker-inner,
+.cola-marker-inner,
+.user-marker-inner {
   width: 100%;
   height: 100%;
   background: transparent;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
   transform-origin: 50% 85%;
+}
+
+.cabecera-marker-inner {
   animation: cabecera-bob 1.8s ease-in-out infinite;
 }
 
-.cabecera-marker svg {
+.cabecera-marker svg,
+.cabecera-marker img,
+.cola-marker img,
+.user-marker svg,
+.user-marker img {
   width: 100%;
   height: 100%;
   display: block;
   overflow: visible;
   background: transparent;
+  object-fit: contain;
 }
 
-.cabecera-marker.is-hidden {
+.cabecera-marker.is-hidden,
+.cola-marker.is-hidden,
+.user-marker.is-hidden {
   display: none;
 }
 
@@ -175,6 +208,7 @@ body {
     transform: translateY(-4px);
   }
 }
+
 
 .brand-chip h1 {
   margin: 0;

@@ -60,7 +60,10 @@ require([
     lastStreetTickAt: 0,
     cabeceraHalo: null,
     paradeBodyGraphic: null,
-    colaGraphic: null
+    colaGraphic: null,
+    colaPoint: null,
+    userMarker: null,
+    userSvgHtml: null
   };
 
   const routeLayer = new GraphicsLayer({ title: "Recorrido", listMode: "hide" });
@@ -170,6 +173,7 @@ require([
       liveLayer.remove(state.colaGraphic);
       state.colaGraphic = null;
     }
+    state.colaPoint = null;
     state.displayAlong = null;
     state.lastFixAlong = null;
     state.lastRoutePaintAlong = null;
@@ -277,6 +281,21 @@ require([
     }
   }
 
+  function colaIconUrl() {
+    return new URL("assets/cola-reyes.svg?v=5", window.location.href).href;
+  }
+
+  function userIconUrl() {
+    return new URL("assets/nino-ilusion.svg?v=5", window.location.href).href;
+  }
+
+  async function loadUserSvg() {
+    if (state.userSvgHtml) return state.userSvgHtml;
+    const res = await fetch(userIconUrl(), { cache: "no-cache" });
+    state.userSvgHtml = await res.text();
+    return state.userSvgHtml;
+  }
+
   /** Dibuja la comitiva (cabecera → cola / Reyes) sobre la ruta */
   function drawParadeBody(headAlong) {
     const cola = colaAlongFromHead(headAlong);
@@ -290,6 +309,7 @@ require([
         liveLayer.remove(state.colaGraphic);
         state.colaGraphic = null;
       }
+      state.colaPoint = null;
       return;
     }
 
@@ -302,6 +322,7 @@ require([
           })
         : null;
     const colaPt = pointAlongRoute(cola);
+    state.colaPoint = colaPt;
 
     if (bodyGeom) {
       if (
@@ -324,12 +345,13 @@ require([
       }
     }
 
+    // Mismo enfoque que Inicio/Meta (picture-marker): fiable con SVG estático
     const colaSymbol = {
       type: "picture-marker",
-      url: new URL("assets/cola-reyes.svg?v=1", window.location.href).href,
-      width: "40px",
-      height: "40px",
-      yoffset: 14
+      url: colaIconUrl(),
+      width: "52px",
+      height: "52px",
+      yoffset: 20
     };
     if (
       state.colaGraphic &&
@@ -340,12 +362,7 @@ require([
     } else {
       state.colaGraphic = new Graphic({
         geometry: colaPt,
-        symbol: colaSymbol,
-        attributes: { title: "Cola · Reyes Magos" },
-        popupTemplate: {
-          title: "Final de la cabalgata",
-          content: "Zona aproximada de los Reyes Magos (cola de la comitiva)."
-        }
+        symbol: colaSymbol
       });
       liveLayer.add(state.colaGraphic);
     }
@@ -731,16 +748,9 @@ require([
     }
   }
 
-  function ensureCabeceraMarker() {
-    if (state.cabeceraMarker) return state.cabeceraMarker;
-    const el = document.createElement("div");
-    el.className = "cabecera-marker is-hidden";
-    el.setAttribute("aria-hidden", "true");
-    el.innerHTML = '<div class="cabecera-marker-inner"></div>';
-    document.body.appendChild(el);
-    state.cabeceraMarker = el;
-
-    const sync = () => syncCabeceraMarker();
+  function bindOverlaySync() {
+    if (state.cabeceraWatchHandles && state.cabeceraWatchHandles.length) return;
+    const sync = () => syncAllOverlayMarkers();
     state.cabeceraWatchHandles = [
       view.watch("extent", sync),
       view.watch("rotation", sync),
@@ -748,13 +758,50 @@ require([
       view.watch("stationary", sync)
     ];
     window.addEventListener("resize", sync);
+  }
+
+  function ensureOverlayMarker(stateKey, className, imgSrc, alt) {
+    if (state[stateKey]) return state[stateKey];
+    const el = document.createElement("div");
+    el.className = className + " is-hidden";
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML =
+      '<div class="' +
+      className +
+      '-inner"><img src="' +
+      imgSrc +
+      '" alt="' +
+      alt +
+      '" width="64" height="64" decoding="async" /></div>';
+    document.body.appendChild(el);
+    state[stateKey] = el;
+    bindOverlaySync();
     return el;
   }
 
-  function syncCabeceraMarker() {
-    const el = state.cabeceraMarker;
-    if (!el || !state.cabecera) return;
-    const screen = view.toScreen(state.cabecera);
+  function ensureCabeceraMarker() {
+    const el = ensureOverlayMarker(
+      "cabeceraMarker",
+      "cabecera-marker",
+      iconUrl(),
+      "Cabecera"
+    );
+    // Preferir SVG inline animado si ya se cargó
+    const inner = el.querySelector(".cabecera-marker-inner");
+    if (inner && !inner.dataset.ready && state.iconSvgHtml) {
+      inner.innerHTML = state.iconSvgHtml;
+      inner.dataset.ready = "1";
+    }
+    return el;
+  }
+
+  function syncOverlayMarker(el, point) {
+    if (!el) return;
+    if (!point) {
+      el.classList.add("is-hidden");
+      return;
+    }
+    const screen = view.toScreen(point);
     if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
       el.classList.add("is-hidden");
       return;
@@ -765,10 +812,26 @@ require([
     el.classList.remove("is-hidden");
   }
 
+  function ensureUserMarker() {
+    return ensureOverlayMarker(
+      "userMarker",
+      "user-marker",
+      userIconUrl(),
+      "Tu ubicacion"
+    );
+  }
+
+  function syncAllOverlayMarkers() {
+    syncOverlayMarker(state.cabeceraMarker, state.cabecera);
+    syncOverlayMarker(state.userMarker, state.userPoint);
+  }
+
+  function hideOverlayMarker(el) {
+    if (el) el.classList.add("is-hidden");
+  }
+
   function hideCabeceraMarker() {
-    if (state.cabeceraMarker) {
-      state.cabeceraMarker.classList.add("is-hidden");
-    }
+    hideOverlayMarker(state.cabeceraMarker);
   }
 
   async function drawCabecera(point) {
@@ -802,7 +865,7 @@ require([
         console.warn("cabecera icon", e);
       }
     }
-    syncCabeceraMarker();
+    syncAllOverlayMarkers();
   }
 
   async function showCabeceraAtStart() {
@@ -1062,7 +1125,7 @@ require([
     // Dentro de la comitiva (entre cola/Reyes y cabecera/moto)
     if (userAlong >= colaAlong && userAlong <= headAlong) {
       if (headAlong - userAlong <= arrivingM) {
-        els.etaValue.textContent = "¡Está llegando la cabecera!";
+        els.etaValue.textContent = "¡Está llegando!";
       } else {
         els.etaValue.textContent = "La comitiva está pasando por tu zona";
       }
@@ -1082,7 +1145,7 @@ require([
       els.status.dataset.state === "stopped";
 
     if (metersUntilHead <= arrivingM) {
-      els.etaValue.textContent = "¡Está llegando la cabecera!";
+      els.etaValue.textContent = "¡Está llegando!";
       return;
     }
 
@@ -1096,39 +1159,45 @@ require([
     els.etaValue.textContent = text;
   }
 
-  function userIconUrl() {
-    return new URL("assets/nino-ilusion.svg?v=1", window.location.href).href;
-  }
-
-  function drawUser(point, onRoute) {
-    const symbol = {
-      type: "picture-marker",
-      url: userIconUrl(),
-      width: "44px",
-      height: "44px",
-      yoffset: 16
+  async function drawUser(point, onRoute) {
+    state.userPoint = point;
+    // Halo en el mapa; icono saltando en overlay HTML (SVG inline = animacion CSS)
+    const haloSymbol = {
+      type: "simple-marker",
+      style: "circle",
+      color: onRoute ? [30, 90, 180, 0.18] : [120, 120, 120, 0.18],
+      size: 26,
+      outline: {
+        color: onRoute ? [30, 90, 180, 0.45] : [120, 120, 120, 0.4],
+        width: 1.5
+      }
     };
     if (state.userGraphic) {
       state.userGraphic.geometry = point;
-      state.userGraphic.symbol = symbol;
-      state.userGraphic.attributes = {
-        title: onRoute ? "Tu ubicación (en el recorrido)" : "Tu ubicación"
-      };
+      state.userGraphic.symbol = haloSymbol;
       if (liveLayer.graphics.indexOf(state.userGraphic) < 0) {
         liveLayer.add(state.userGraphic);
       }
-      return;
+    } else {
+      state.userGraphic = new Graphic({
+        geometry: point,
+        symbol: haloSymbol
+      });
+      liveLayer.add(state.userGraphic);
     }
-    state.userGraphic = new Graphic({
-      geometry: point,
-      symbol,
-      attributes: { title: "Tu ubicación" },
-      popupTemplate: {
-        title: "Tú",
-        content: "Niño esperando ilusionado la cabalgata."
+
+    const el = ensureUserMarker();
+    el.classList.toggle("is-offroute", !onRoute);
+    const inner = el.querySelector(".user-marker-inner");
+    if (inner && !inner.dataset.ready) {
+      try {
+        inner.innerHTML = await loadUserSvg();
+        inner.dataset.ready = "1";
+      } catch (e) {
+        console.warn("user icon", e);
       }
-    });
-    liveLayer.add(state.userGraphic);
+    }
+    syncOverlayMarker(el, point);
   }
 
   function toggleLocate() {
@@ -1140,6 +1209,7 @@ require([
         liveLayer.remove(state.userGraphic);
         state.userGraphic = null;
       }
+      hideOverlayMarker(state.userMarker);
       els.btnLocate.textContent = "Activar mi ubicación";
       els.etaChip.classList.add("is-hidden");
       refreshLive();
