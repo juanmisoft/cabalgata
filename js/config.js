@@ -67,13 +67,19 @@ window.CABALGATA_CONFIG = {
   },
 
   timing: {
-    /** Refresh de cabecera / calle / ETA (ms) — más fluido en campo */
-    refreshMs: 3000,
     /**
-     * Sin puntos nuevos durante estos segundos → estado «Detenida»
-     * (antes eran minutos; ahora responde enseguida a pausas).
+     * Refresh de cabecera / calle / ETA (ms).
+     * 15 s: paso a pie + menos carga en AGOL (~mismo orden que Instant 30 s / Rozas 10 s).
      */
-    stoppedAfterSeconds: 45,
+    refreshMs: 15000,
+    /**
+     * Sin puntos nuevos → «Detenida».
+     * Debe ser ≥ ~3–4 ciclos de refresh para no parpadear entre polls.
+     * Con refresh 15 s → 60 s.
+     */
+    stoppedAfterSeconds: 60,
+    /** Cada cuánto forzar recálculo de calle (ms); alineado al refresh */
+    streetUpdateMs: 15000,
     /**
      * Si el último punto es más antiguo que esto, se trata como otro día
      * (Aún no ha salido). Pausas del evento → Detenida, no este caso.

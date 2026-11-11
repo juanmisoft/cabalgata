@@ -249,7 +249,9 @@ require([
     await paintCabeceraAlong(along, {
       paintRoute: true,
       follow: true,
-      updateStreet: now - state.lastStreetTickAt > 12000
+      updateStreet:
+        now - state.lastStreetTickAt >
+        (CFG.timing.streetUpdateMs || CFG.timing.refreshMs || 15000)
     });
     updateEta();
   }
@@ -555,8 +557,9 @@ require([
   }
 
   async function refreshLive() {
-    const cab = await fetchCabecera();
-    const speeds = await fetchRecentSpeeds();
+    const live = await fetchLiveSnapshot();
+    const cab = live.cabecera;
+    const speeds = live.speeds;
     if (speeds.length) {
       const avg =
         speeds.reduce((a, b) => a + b, 0) / speeds.length ||
@@ -590,7 +593,10 @@ require([
 
     const ageSec = (Date.now() - cab.fecha) / 1000;
     const ageMin = ageSec / 60;
-    const stoppedAfter = CFG.timing.stoppedAfterSeconds || 45;
+    // Detenida: sin fixes nuevos durante N s (N ≥ varios ciclos de refresh)
+    const refreshSec = (CFG.timing.refreshMs || 15000) / 1000;
+    const stoppedAfter =
+      CFG.timing.stoppedAfterSeconds || Math.max(60, Math.ceil(refreshSec * 4));
     const eventMaxAgeMin = (CFG.timing.eventMaxAgeHours || 18) * 60;
 
     // Puntos de otro día / pruebas viejas → tratar como sin salida
@@ -675,75 +681,116 @@ require([
     return `${pathAndQuery}${join}_ts=${Date.now()}`;
   }
 
-  async function fetchCabecera() {
-    const url = liveQueryUrl(
-      CFG.layers.cabecera +
-        "/query?where=1%3D1&outFields=OBJECTID,FECHA,esrignss_speed,esrignss_latitude,esrignss_longitude&orderByFields=FECHA%20DESC&resultRecordCount=5&returnGeometry=true&outSR=4326&f=json"
-    );
-    const res = await esriRequest(url, { responseType: "json" });
-    if (res.data?.error) {
-      throw new Error(res.data.error.message || "Error consulta cabecera");
-    }
-    const features = res.data.features || [];
-    if (!features.length) return null;
-    // Tomar el más reciente con geometría válida
-    const f =
-      features.find((feat) => {
-        const x = feat.geometry?.x ?? feat.attributes.esrignss_longitude;
-        const y = feat.geometry?.y ?? feat.attributes.esrignss_latitude;
-        return x != null && y != null;
-      }) || features[0];
-    const lon = f.geometry?.x ?? f.attributes.esrignss_longitude;
-    const lat = f.geometry?.y ?? f.attributes.esrignss_latitude;
-    if (lon == null || lat == null) return null;
-    return {
-      point: new Point({ longitude: Number(lon), latitude: Number(lat) }),
-      fecha: f.attributes.FECHA || Date.now(),
-      speed: gnssSpeedToKmh(f.attributes.esrignss_speed),
-      calle: null
-    };
-  }
-
-  async function fetchRecentSpeeds() {
-    const minutes = CFG.timing.speedWindowMinutes;
+  /**
+   * Una sola query a la vista de ubicación:
+   * - cabecera = fix más reciente
+   * - speeds = ventana reciente (ETA)
+   * Antes eran 2 queries / refresh → ahora 1 (mitad de carga en AGOL).
+   */
+  async function fetchLiveSnapshot() {
+    const minutes = CFG.timing.speedWindowMinutes || 4;
     const days = minutes / (24 * 60);
     const where = encodeURIComponent(
       `FECHA BETWEEN CURRENT_TIMESTAMP - ${days} AND CURRENT_TIMESTAMP`
     );
     const url = liveQueryUrl(
       CFG.layers.cabecera +
-        `/query?where=${where}&outFields=FECHA,esrignss_speed&orderByFields=FECHA%20ASC&returnGeometry=true&outSR=4326&f=json`
+        `/query?where=${where}&outFields=OBJECTID,FECHA,esrignss_speed,esrignss_longitude,esrignss_latitude&orderByFields=FECHA%20DESC&returnGeometry=true&outSR=4326&f=json`
+    );
+
+    try {
+      const res = await esriRequest(url, { responseType: "json" });
+      if (res.data?.error) {
+        throw new Error(res.data.error.message || "Error consulta cabecera");
+      }
+      const features = res.data.features || [];
+      if (!features.length) {
+        // Sin puntos en la ventana: último fix absoluto (1 query ligera)
+        return { cabecera: await fetchCabeceraFallback(), speeds: [] };
+      }
+
+      const f =
+        features.find((feat) => {
+          const x = feat.geometry?.x ?? feat.attributes.esrignss_longitude;
+          const y = feat.geometry?.y ?? feat.attributes.esrignss_latitude;
+          return x != null && y != null;
+        }) || features[0];
+      const lon = f.geometry?.x ?? f.attributes.esrignss_longitude;
+      const lat = f.geometry?.y ?? f.attributes.esrignss_latitude;
+      const cabecera =
+        lon != null && lat != null
+          ? {
+              point: new Point({
+                longitude: Number(lon),
+                latitude: Number(lat)
+              }),
+              fecha: f.attributes.FECHA || Date.now(),
+              speed: gnssSpeedToKmh(f.attributes.esrignss_speed),
+              calle: null
+            }
+          : null;
+
+      let speeds = features
+        .map((feat) => gnssSpeedToKmh(feat.attributes.esrignss_speed))
+        .filter((s) => typeof s === "number" && s >= 0);
+
+      // Fallback: velocidad por distancia entre fixes (ASC en el tiempo)
+      if (!speeds.length && features.length >= 2) {
+        const asc = features.slice().reverse();
+        const computed = [];
+        for (let i = 1; i < asc.length; i++) {
+          const a = asc[i - 1];
+          const b = asc[i];
+          const dtH = (b.attributes.FECHA - a.attributes.FECHA) / 3600000;
+          if (dtH <= 0) continue;
+          const ax = a.geometry?.x ?? a.attributes.esrignss_longitude;
+          const ay = a.geometry?.y ?? a.attributes.esrignss_latitude;
+          const bx = b.geometry?.x ?? b.attributes.esrignss_longitude;
+          const by = b.geometry?.y ?? b.attributes.esrignss_latitude;
+          if (ax == null || ay == null || bx == null || by == null) continue;
+          const dKm = Geo.haversine([ax, ay], [bx, by]) / 1000;
+          computed.push(dKm / dtH);
+        }
+        speeds = computed;
+      }
+
+      return { cabecera, speeds };
+    } catch (e) {
+      console.warn("live snapshot", e);
+      return { cabecera: await fetchCabeceraFallback(), speeds: [] };
+    }
+  }
+
+  /** Solo si la ventana temporal no devolvió puntos */
+  async function fetchCabeceraFallback() {
+    const url = liveQueryUrl(
+      CFG.layers.cabecera +
+        "/query?where=1%3D1&outFields=OBJECTID,FECHA,esrignss_speed,esrignss_latitude,esrignss_longitude&orderByFields=FECHA%20DESC&resultRecordCount=5&returnGeometry=true&outSR=4326&f=json"
     );
     try {
       const res = await esriRequest(url, { responseType: "json" });
-      const feats = res.data.features || [];
-      const speeds = feats
-        .map((f) => gnssSpeedToKmh(f.attributes.esrignss_speed))
-        .filter((s) => typeof s === "number" && s >= 0);
-      if (speeds.length) return speeds;
-
-      // Fallback: velocidad por distancia entre fixes (ya en km/h)
-      if (feats.length >= 2) {
-        const computed = [];
-        for (let i = 1; i < feats.length; i++) {
-          const a = feats[i - 1];
-          const b = feats[i];
-          const dtH =
-            (b.attributes.FECHA - a.attributes.FECHA) / 3600000;
-          if (dtH <= 0) continue;
-          const dKm =
-            Geo.haversine(
-              [a.geometry.x, a.geometry.y],
-              [b.geometry.x, b.geometry.y]
-            ) / 1000;
-          computed.push(dKm / dtH);
-        }
-        return computed;
-      }
+      if (res.data?.error) return null;
+      const features = res.data.features || [];
+      if (!features.length) return null;
+      const f =
+        features.find((feat) => {
+          const x = feat.geometry?.x ?? feat.attributes.esrignss_longitude;
+          const y = feat.geometry?.y ?? feat.attributes.esrignss_latitude;
+          return x != null && y != null;
+        }) || features[0];
+      const lon = f.geometry?.x ?? f.attributes.esrignss_longitude;
+      const lat = f.geometry?.y ?? f.attributes.esrignss_latitude;
+      if (lon == null || lat == null) return null;
+      return {
+        point: new Point({ longitude: Number(lon), latitude: Number(lat) }),
+        fecha: f.attributes.FECHA || Date.now(),
+        speed: gnssSpeedToKmh(f.attributes.esrignss_speed),
+        calle: null
+      };
     } catch (e) {
-      console.warn("speed query", e);
+      console.warn("cabecera fallback", e);
+      return null;
     }
-    return [];
   }
 
   function iconUrl() {
