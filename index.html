@@ -11,15 +11,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Source+Sans+3:wght@400;600;650;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css" />
-  <link rel="stylesheet" href="css/styles.css?v=11" />
+  <link rel="stylesheet" href="css/styles.css?v=20" />
   <script>
     var dojoConfig = { async: true };
   </script>
-  <script src="js/config.js?v=18"></script>
+  <script src="js/config.js?v=20"></script>
   <script src="js/geometry.js"></script>
   <script src="js/presence.js"></script>
   <script src="https://js.arcgis.com/4.31/"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/app.js?v=19"></script>
 </head>
 <body>
   <div id="viewDiv" role="application" aria-label="Mapa del recorrido de la cabalgata"></div>
@@ -56,6 +56,36 @@
     </div>
   </header>
 
+  <aside id="liveVideo" class="live-video is-hidden" aria-label="Video en directo">
+    <button
+      id="liveVideoToggle"
+      class="live-video-bar"
+      type="button"
+      aria-expanded="false"
+      title="Ampliar o reducir el video"
+    >
+      <span class="live-video-dot" aria-hidden="true"></span>
+      <span class="live-video-title">Video en directo</span>
+      <span id="liveVideoHint" class="live-video-hint">Toca para ampliar</span>
+    </button>
+    <div class="live-video-frame">
+      <iframe
+        id="liveVideoFrame"
+        title="Cabalgata de Reyes en directo"
+        src=""
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+      <button
+        id="liveVideoHit"
+        class="live-video-hit"
+        type="button"
+        aria-label="Ampliar video a todo el ancho"
+      ></button>
+    </div>
+  </aside>
+
   <aside class="bottom-panel" aria-live="polite">
     <div class="info-chip street">
       <span id="streetLabel" class="label">Ahora está en</span>
@@ -70,5 +100,38 @@
       <button id="btnFollow" class="btn-secondary is-active" type="button" aria-pressed="true">Desactivar seguimiento</button>
     </div>
   </aside>
+
+  <script>
+    (function () {
+      var cfg = window.CABALGATA_CONFIG && window.CABALGATA_CONFIG.youtube;
+      var root = document.getElementById("liveVideo");
+      var frame = document.getElementById("liveVideoFrame");
+      var toggle = document.getElementById("liveVideoToggle");
+      var hit = document.getElementById("liveVideoHit");
+      var hint = document.getElementById("liveVideoHint");
+      if (!cfg || !cfg.enabled || !cfg.videoId || !root || !frame) return;
+
+      // autoplay exige mute en la mayoría de navegadores
+      frame.src =
+        "https://www.youtube.com/embed/" +
+        encodeURIComponent(cfg.videoId) +
+        "?autoplay=1&mute=1&playsinline=1&rel=0";
+      root.classList.remove("is-hidden");
+
+      function setExpanded(on) {
+        root.classList.toggle("is-expanded", on);
+        if (toggle) toggle.setAttribute("aria-expanded", on ? "true" : "false");
+        if (hint) hint.textContent = on ? "Toca para reducir" : "Toca para ampliar";
+        if (hit) hit.hidden = on;
+      }
+
+      function toggleExpanded() {
+        setExpanded(!root.classList.contains("is-expanded"));
+      }
+
+      if (toggle) toggle.addEventListener("click", toggleExpanded);
+      if (hit) hit.addEventListener("click", function () { setExpanded(true); });
+    })();
+  </script>
 </body>
 </html>

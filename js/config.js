@@ -117,6 +117,12 @@ window.CABALGATA_CONFIG = {
     zoom: 14
   },
 
+  /** Directo YouTube (cambiar videoId cuando toque el stream del año) */
+  youtube: {
+    videoId: "C5b2TengduM",
+    enabled: true
+  },
+
   /**
    * Contador de usuarios activos.
    * Crea en AGOL una tabla/Feature Layer pública (Add+Update) con:
