@@ -251,7 +251,7 @@ require([
       follow: true,
       updateStreet:
         now - state.lastStreetTickAt >
-        (CFG.timing.streetUpdateMs || CFG.timing.refreshMs || 15000)
+        (CFG.timing.streetUpdateMs || CFG.timing.refreshMs || 5000)
     });
     updateEta();
   }
@@ -594,9 +594,9 @@ require([
     const ageSec = (Date.now() - cab.fecha) / 1000;
     const ageMin = ageSec / 60;
     // Detenida: sin fixes nuevos durante N s (N ≥ varios ciclos de refresh)
-    const refreshSec = (CFG.timing.refreshMs || 15000) / 1000;
+    const refreshSec = (CFG.timing.refreshMs || 5000) / 1000;
     const stoppedAfter =
-      CFG.timing.stoppedAfterSeconds || Math.max(60, Math.ceil(refreshSec * 4));
+      CFG.timing.stoppedAfterSeconds || Math.max(30, Math.ceil(refreshSec * 6));
     const eventMaxAgeMin = (CFG.timing.eventMaxAgeHours || 18) * 60;
 
     // Puntos de otro día / pruebas viejas → tratar como sin salida
