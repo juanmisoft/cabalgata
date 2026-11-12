@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Source+Sans+3:wght@400;600;650;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css" />
-  <link rel="stylesheet" href="css/styles.css?v=20" />
+  <link rel="stylesheet" href="css/styles.css?v=22" />
   <script>
     var dojoConfig = { async: true };
   </script>
@@ -62,11 +62,17 @@
       class="live-video-bar"
       type="button"
       aria-expanded="false"
+      aria-label="Ampliar video en directo"
       title="Ampliar o reducir el video"
     >
       <span class="live-video-dot" aria-hidden="true"></span>
-      <span class="live-video-title">Video en directo</span>
-      <span id="liveVideoHint" class="live-video-hint">Toca para ampliar</span>
+      <span class="live-video-title">Directo</span>
+      <span id="liveVideoHint" class="live-video-action">
+        <span class="live-video-action-text">Ampliar</span>
+        <svg class="live-video-action-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm12-9h-5v2h3v3h2V5zM5 5v5h2V7h3V5H5zm14 9h-2v3h-3v2h5v-5z"/>
+        </svg>
+      </span>
     </button>
     <div class="live-video-frame">
       <iframe
@@ -120,8 +126,26 @@
 
       function setExpanded(on) {
         root.classList.toggle("is-expanded", on);
-        if (toggle) toggle.setAttribute("aria-expanded", on ? "true" : "false");
-        if (hint) hint.textContent = on ? "Toca para reducir" : "Toca para ampliar";
+        if (toggle) {
+          toggle.setAttribute("aria-expanded", on ? "true" : "false");
+          toggle.setAttribute(
+            "aria-label",
+            on ? "Reducir video en directo" : "Ampliar video en directo"
+          );
+        }
+        if (hint) {
+          var label = hint.querySelector(".live-video-action-text");
+          if (label) label.textContent = on ? "Reducir" : "Ampliar";
+          var icon = hint.querySelector(".live-video-action-icon path");
+          if (icon) {
+            icon.setAttribute(
+              "d",
+              on
+                ? "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"
+                : "M7 14H5v5h5v-2H7v-3zm12-9h-5v2h3v3h2V5zM5 5v5h2V7h3V5H5zm14 9h-2v3h-3v2h5v-5z"
+            );
+          }
+        }
         if (hit) hit.hidden = on;
       }
 

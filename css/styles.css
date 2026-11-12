@@ -327,24 +327,31 @@ body {
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-height: 48px;
   margin: 0;
-  padding: 8px 10px;
+  padding: 8px 8px 8px 12px;
   border: 0;
   border-bottom: 1px solid var(--panel-border);
   background: rgba(255, 252, 248, 0.98);
   color: var(--ink);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-align: left;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.live-video-bar:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
 }
 
 .live-video-dot {
   flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--brand);
   box-shadow: 0 0 0 0 rgba(194, 0, 0, 0.45);
@@ -359,12 +366,31 @@ body {
   text-overflow: ellipsis;
 }
 
-.live-video-hint {
+.live-video-action {
   flex: 0 0 auto;
-  font-size: 0.68rem;
-  font-weight: 650;
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+}
+
+.live-video-action-icon {
+  flex: 0 0 auto;
+  display: block;
+}
+
+.live-video.is-expanded .live-video-action {
+  background: #1f1a17;
 }
 
 .live-video-frame {
@@ -417,16 +443,27 @@ body {
 
 @media (max-width: 520px) {
   .live-video {
-    width: min(48vw, 180px);
+    width: min(58vw, 220px);
     top: calc(env(safe-area-inset-top, 0px) + 86px);
   }
 
-  .live-video-hint {
-    display: none;
+  .live-video-bar {
+    min-height: 52px;
+    padding: 8px 8px 8px 10px;
+    gap: 6px;
+    font-size: 0.9rem;
   }
 
-  .live-video.is-expanded .live-video-hint {
-    display: inline;
+  .live-video-action {
+    min-height: 44px;
+    padding: 0 16px;
+    font-size: 0.95rem;
+    gap: 6px;
+  }
+
+  .live-video-action-icon {
+    width: 22px;
+    height: 22px;
   }
 }
 
